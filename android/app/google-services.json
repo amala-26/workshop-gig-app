@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1014195525225",
+    "project_id": "workshop-gig-app",
+    "storage_bucket": "workshop-gig-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1014195525225:android:b0787776e716727d9eb4f8",
+        "android_client_info": {
+          "package_name": "com.example.workshopgigapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAGcJOrp3t70lkRAtooflVBr9lAAYpihig"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
