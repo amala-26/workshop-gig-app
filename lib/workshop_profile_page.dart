@@ -232,7 +232,7 @@ class _WorkshopProfilePageState extends State<WorkshopProfilePage> {
               const SizedBox(height: 8),
               Text(_emailController.text, style: const TextStyle(fontSize: 16, color: Colors.grey)),
               const SizedBox(height: 8),
-              Text(_phoneController.text, style: const TextStyle(fontSize: 16)),
+              Text(_phoneController.text, style: const TextStyle(fontSize: 19)),
               const Divider(height: 32),
               _buildReadOnlyField('Workshop Name', _workshopNameController.text),
               _buildReadOnlyField('Workshop Address', _workshopAddressController.text),
