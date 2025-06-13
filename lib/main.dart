@@ -337,7 +337,7 @@ class _SignUpPageState extends State<SignUpPage> {
     final Color accentColor = const Color(0xFFFF9800);
     final Color backgroundColor = const Color(0xFFF5F7FA);
     final Color cardColor = Colors.white;
-    final Color tealColor = const Color(0xFFF5F7FA);
+    final Color tealColor = const Color(0xFF00897B);
 
     return Scaffold(
       backgroundColor: backgroundColor,
