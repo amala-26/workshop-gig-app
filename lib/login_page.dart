@@ -19,7 +19,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor = const Color(0xFF1A237E); // Deep Blue
+    final Color primaryColor = const Color(0xFF00897B); // Deep Blue
     final Color accentColor = const Color(0xFFFF9800); // Orange
     final Color backgroundColor = const Color(0xFFF5F7FA); // Light background
     final Color cardColor = Colors.white;
