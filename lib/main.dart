@@ -335,7 +335,7 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     final Color primaryColor = const Color(0xFF1A237E);
     final Color accentColor = const Color(0xFFFF9800);
-    final Color backgroundColor = const Color(0xFFFF9800);
+    final Color backgroundColor = const Color(0xFFF5F7FA);
     final Color cardColor = Colors.white;
     final Color tealColor = const Color(0xFF00897B);
 
