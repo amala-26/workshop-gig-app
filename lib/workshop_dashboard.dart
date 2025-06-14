@@ -126,46 +126,8 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
               onTap: _navigateToProfile,
             ),
             ExpansionTile(
-              leading: const Icon(Icons.calendar_today),
-              title: const Text('Manage Foreman Schedule'),
-              initiallyExpanded: _isScheduleExpanded,
-              onExpansionChanged: (expanded) {
-                setState(() {
-                  _isScheduleExpanded = expanded;
-                });
-              },
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.work_outline),
-                  title: const Text('Manage Gig Slots'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ManageGigSlots(gigService: _gigService),
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.assignment),
-                  title: const Text('Manage Applications'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ManageGigApplication(gigService: _gigService),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-            ExpansionTile(
               leading: const Icon(Icons.inventory),
-              title: const Text('Inventory Management'),
+              title: const Text('Manage Inventory'),
               initiallyExpanded: _isInventoryExpanded,
               onExpansionChanged: (expanded) {
                 setState(() {
@@ -221,6 +183,52 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => RequestStatusPage(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.group),
+                  title: const Text('Manage Suppliers'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/manage-suppliers');
+                  },
+                ),
+              ],
+            ),
+            ExpansionTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('Manage Foreman Schedule'),
+              initiallyExpanded: _isScheduleExpanded,
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  _isScheduleExpanded = expanded;
+                });
+              },
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.work_outline),
+                  title: const Text('Manage Gig Slots'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ManageGigSlots(gigService: _gigService),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.assignment),
+                  title: const Text('Manage Applications'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ManageGigApplication(gigService: _gigService),
                       ),
                     );
                   },

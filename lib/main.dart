@@ -12,6 +12,10 @@ import 'request_inventory_page.dart';
 import 'request_status_page.dart';
 import 'edit_inventory_page.dart';
 import 'workshop_payroll.dart';
+<<<<<<< HEAD
+=======
+
+>>>>>>> cdeecb0b3acfc6938b37d6de3c29e86e0c74e9c5
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,7 +84,7 @@ class MyApp extends StatelessWidget {
             return EditInventoryPage(itemId: args['itemId'], itemData: args['itemData']);
           },
       },
-      home: const LoginPage(),
+      // home: const LoginPage(),
     );
   }
 }
