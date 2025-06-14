@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'workshop_profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'workshop_profile_page.dart';
 
 class WorkshopDashboard extends StatelessWidget {
   const WorkshopDashboard({Key? key}) : super(key: key);
 
   Future<void> _handleLogout(BuildContext context) async {
-    // Show confirmation dialog
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -69,7 +68,10 @@ class WorkshopDashboard extends StatelessWidget {
               onTap: () async {
                 final user = FirebaseAuth.instance.currentUser;
                 if (user != null) {
-                  final doc = await FirebaseFirestore.instance.collection('workshops').doc(user.uid).get();
+                  final doc = await FirebaseFirestore.instance
+                      .collection('workshops')
+                      .doc(user.uid)
+                      .get();
                   if (doc.exists) {
                     Navigator.push(
                       context,
@@ -90,12 +92,36 @@ class WorkshopDashboard extends StatelessWidget {
           ],
         ),
       ),
-      body: const Center(
-        child: Text(
-          'Welcome to the Workshop Dashboard!',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushNamed(context, '/view-inventory');
+              },
+              icon: const Icon(Icons.inventory),
+              label: const Text('View Inventory'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushNamed(context, '/request-inventory');
+              },
+              icon: const Icon(Icons.add_shopping_cart),
+              label: const Text('Request Inventory'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushNamed(context, '/view-requests');
+              },
+              icon: const Icon(Icons.receipt_long),
+              label: const Text('View Requests'),
+            ),
+          ],
         ),
       ),
     );
   }
-} 
+}
