@@ -8,7 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'workshop_profile_page.dart';
 
-class WorkshopDashboard extends StatelessWidget {
+
 class WorkshopDashboard extends StatefulWidget {
   const WorkshopDashboard({Key? key}) : super(key: key);
 
