@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'screens/ManageGigSlots.dart';
+import 'screens/ManageGigApplication.dart';
+import 'services/gig_service.dart';
 import 'workshop_profile_page.dart';
+import 'view_inventory_page.dart';
+import 'add_inventory_page.dart';
+import 'request_inventory_page.dart';
+import 'request_status_page.dart';
+import 'workshop_payroll.dart';
 
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'workshop_profile_page.dart';
-
-class WorkshopDashboard extends StatelessWidget {
 class WorkshopDashboard extends StatefulWidget {
   const WorkshopDashboard({Key? key}) : super(key: key);
 
@@ -17,86 +19,53 @@ class WorkshopDashboard extends StatefulWidget {
 }
 
 class _WorkshopDashboardState extends State<WorkshopDashboard> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GigService _gigService = GigService();
+  String _userName = '';
+  String _userEmail = '';
   bool _isScheduleExpanded = false;
+  bool _isInventoryExpanded = false;
   bool _isPayrollExpanded = false;
 
-  Future<void> _handleLogout(BuildContext context) async {
-    final shouldLogout = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
 
-    if (shouldLogout == true) {
-      try {
-        await FirebaseAuth.instance.signOut();
-        if (context.mounted) {
-          Navigator.pushReplacementNamed(context, '/login');
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error logging out. Please try again.')),
-          );
-        }
+  Future<void> _loadUserData() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection('workshops')
+          .doc(user.uid)
+          .get();
+      if (doc.exists) {
+        setState(() {
+          _userName = doc.data()?['name'] ?? '';
+          _userEmail = doc.data()?['email'] ?? '';
+        });
       }
     }
   }
 
-  void _manageSuppliers(BuildContext context) {
-    Navigator.pushNamed(context, '/manage-suppliers');
-  }
-
-  void _showInventoryOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.inventory),
-              title: const Text('View Inventory'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/view-inventory');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.add_shopping_cart),
-              title: const Text('Request Inventory'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/request-inventory');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.receipt_long),
-              title: const Text('View Requests'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/view-requests');
-              },
-            ),
-          ],
+  Future<void> _navigateToProfile() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection('workshops')
+          .doc(user.uid)
+          .get();
+      if (doc.exists && mounted) {
+        Navigator.pop(context); // Close drawer
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WorkshopProfilePage(initialData: doc.data()!),
+          ),
         );
-      },
-    );
+      }
+    }
   }
 
   @override
@@ -107,8 +76,12 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => _handleLogout(context),
-            tooltip: 'Logout',
+            onPressed: () async {
+              await _auth.signOut();
+              if (mounted) {
+                Navigator.pushReplacementNamed(context, '/login');
+              }
+            },
           ),
         ],
       ),
@@ -116,36 +89,41 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Color(0xFF1A237E)),
-              child: Text('Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                color: Color(0xFF1A237E),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.person, size: 40, color: Color(0xFF1A237E)),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _userName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    _userEmail,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
             ),
             ListTile(
               leading: const Icon(Icons.person),
               title: const Text('Profile'),
-              onTap: () async {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  final doc = await FirebaseFirestore.instance
-                      .collection('workshops')
-                      .doc(user.uid)
-                      .get();
-                  if (doc.exists) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => WorkshopProfilePage(
-                          initialData: doc.data() ?? {},
-                        ),
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Profile not found.')),
-                    );
-                  }
-                }
-              },
+              onTap: _navigateToProfile,
             ),
             ExpansionTile(
               leading: const Icon(Icons.calendar_today),
@@ -161,22 +139,97 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
                   leading: const Icon(Icons.work_outline),
                   title: const Text('Manage Gig Slots'),
                   onTap: () {
-                    Navigator.pushNamed(context, '/manage-gig-slots');
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ManageGigSlots(gigService: _gigService),
+                      ),
+                    );
                   },
                 ),
                 ListTile(
                   leading: const Icon(Icons.assignment),
-                  title: const Text('Manage Gig Applications'),
+                  title: const Text('Manage Applications'),
                   onTap: () {
-                    Navigator.pushNamed(context, '/manage-applications');
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ManageGigApplication(gigService: _gigService),
+                      ),
+                    );
                   },
                 ),
               ],
             ),
-            // Separate Manage Payroll section
+            ExpansionTile(
+              leading: const Icon(Icons.inventory),
+              title: const Text('Inventory Management'),
+              initiallyExpanded: _isInventoryExpanded,
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  _isInventoryExpanded = expanded;
+                });
+              },
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.list),
+                  title: const Text('View Inventory'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ViewInventoryPage(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.add_box),
+                  title: const Text('Add Inventory'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddInventoryPage(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.shopping_cart),
+                  title: const Text('Request Inventory'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => RequestInventoryPage(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.history),
+                  title: const Text('Request Status'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => RequestStatusPage(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
             ExpansionTile(
               leading: const Icon(Icons.payment),
-              title: const Text('Manage Payroll'),
+              title: const Text('Payroll Management'),
               initiallyExpanded: _isPayrollExpanded,
               onExpansionChanged: (expanded) {
                 setState(() {
@@ -186,16 +239,23 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
               children: [
                 ListTile(
                   leading: const Icon(Icons.attach_money),
-                  title: const Text('Payroll'),
+                  title: const Text('View Payroll'),
                   onTap: () {
-                    Navigator.pushNamed(context, '/payroll');
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WorkshopPayroll(),
+                      ),
+                    );
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.list_alt),
-                  title: const Text('View Payroll'),
+                  leading: const Icon(Icons.add_circle),
+                  title: const Text('Add Payroll Record'),
                   onTap: () {
-                    Navigator.pushNamed(context, '/view-payroll');
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/add-payroll');
                   },
                 ),
               ],
@@ -207,16 +267,26 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ElevatedButton.icon(
-              onPressed: () => _showInventoryOptions(context),
-              icon: const Icon(Icons.storage),
-              label: const Text('Inventory'),
+            const Icon(
+              Icons.dashboard,
+              size: 100,
+              color: Color(0xFF1A237E),
             ),
             const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () => _manageSuppliers(context),
-              icon: const Icon(Icons.group),
-              label: const Text('Manage Suppliers'),
+            Text(
+              'Welcome, $_userName',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Use the menu to navigate',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
             ),
           ],
         ),
