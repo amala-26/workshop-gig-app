@@ -6,6 +6,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'foreman_dashboard.dart';
 import 'workshop_dashboard.dart';
+import 'view_inventory_page.dart';
+import 'add_inventory_page.dart';
+import 'request_inventory_page.dart';
+import 'request_status_page.dart';
+import 'workshop_payroll.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,9 +29,6 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    // Create a single instance of GigService to be used across the app
-    final gigService = GigService();
-
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
@@ -65,8 +67,12 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/forgot-password': (context) => const ForgotPasswordPage(),
         '/signup': (context) => const SignUpPage(),
-        '/foreman-dashboard': (context) => const ForemanDashboard(),
-        '/workshop-dashboard': (context) => const WorkshopDashboard(),
+
+        // Inventory module pages
+        '/view-inventory': (context) => ViewInventoryPage(),
+        '/add-inventory': (context) => AddInventoryPage(),
+        '/request-inventory': (context) => RequestInventoryPage(),
+        '/view-requests': (context) => RequestStatusPage(),
       },
       home: const LoginPage(),
     );

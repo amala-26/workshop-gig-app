@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'workshop-gig-app.firebasestorage.app',
     measurementId: 'G-M26257JNDZ',
   );
+
 }

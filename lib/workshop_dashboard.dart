@@ -12,6 +12,7 @@ class WorkshopDashboard extends StatefulWidget {
 
 class _WorkshopDashboardState extends State<WorkshopDashboard> {
   bool _isScheduleExpanded = false;
+  bool _isPayrollExpanded = false;
 
   Future<void> _handleLogout(BuildContext context) async {
     final shouldLogout = await showDialog<bool>(
@@ -118,6 +119,33 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
                   title: const Text('Manage Gig Applications'),
                   onTap: () {
                     Navigator.pushNamed(context, '/manage-applications');
+                  },
+                ),
+              ],
+            ),
+            // Separate Manage Payroll section
+            ExpansionTile(
+              leading: const Icon(Icons.payment),
+              title: const Text('Manage Payroll'),
+              initiallyExpanded: _isPayrollExpanded,
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  _isPayrollExpanded = expanded;
+                });
+              },
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.attach_money),
+                  title: const Text('Payroll'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/payroll');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.list_alt),
+                  title: const Text('View Payroll'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/view-payroll');
                   },
                 ),
               ],
