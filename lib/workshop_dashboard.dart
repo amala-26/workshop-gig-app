@@ -3,8 +3,15 @@ import 'workshop_profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class WorkshopDashboard extends StatelessWidget {
+class WorkshopDashboard extends StatefulWidget {
   const WorkshopDashboard({Key? key}) : super(key: key);
+
+  @override
+  State<WorkshopDashboard> createState() => _WorkshopDashboardState();
+}
+
+class _WorkshopDashboardState extends State<WorkshopDashboard> {
+  bool _isScheduleExpanded = false;
 
   Future<void> _handleLogout(BuildContext context) async {
     // Show confirmation dialog
@@ -86,6 +93,32 @@ class WorkshopDashboard extends StatelessWidget {
                   }
                 }
               },
+            ),
+            ExpansionTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('Manage Foreman Schedule'),
+              initiallyExpanded: _isScheduleExpanded,
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  _isScheduleExpanded = expanded;
+                });
+              },
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.work_outline),
+                  title: const Text('Manage Gig Slots'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/manage-gig-slots');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.assignment),
+                  title: const Text('Manage Gig Applications'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/manage-applications');
+                  },
+                ),
+              ],
             ),
           ],
         ),
