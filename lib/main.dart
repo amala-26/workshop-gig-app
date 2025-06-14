@@ -10,8 +10,12 @@ import 'view_inventory_page.dart';
 import 'add_inventory_page.dart';
 import 'request_inventory_page.dart';
 import 'request_status_page.dart';
+<<<<<<< HEAD
 import 'edit_inventory_page.dart';
 
+=======
+import 'workshop_payroll.dart';
+>>>>>>> 3c092799582c46eec171199554b05368370c7c66
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

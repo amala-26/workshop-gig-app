@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isWorkshopOwner() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/workshops/$(request.auth.uid));
+    }
+    
+    function isForeman() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/foremen/$(request.auth.uid));
+    }
+
+    // Gigs collection rules
+    match /gigs/{gigId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isWorkshopOwner();
+    }
+
+    // Applications collection rules
+    match /applications/{applicationId} {
+      allow read: if isAuthenticated();
+      allow create: if isForeman();
+      allow update: if isWorkshopOwner();
+      allow delete: if isWorkshopOwner();
+    }
+
+    // Workshops collection rules
+    match /workshops/{workshopId} {
+      allow read: if isAuthenticated();
+      allow write: if isWorkshopOwner() && workshopId == request.auth.uid;
+    }
+
+    // Foremen collection rules
+    match /foremen/{foremanId} {
+      allow read: if isAuthenticated();
+      allow write: if isForeman() && foremanId == request.auth.uid;
+    }
+  }
+} 

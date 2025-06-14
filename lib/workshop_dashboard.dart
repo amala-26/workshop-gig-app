@@ -9,7 +9,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'workshop_profile_page.dart';
 
 class WorkshopDashboard extends StatelessWidget {
+class WorkshopDashboard extends StatefulWidget {
   const WorkshopDashboard({Key? key}) : super(key: key);
+
+  @override
+  State<WorkshopDashboard> createState() => _WorkshopDashboardState();
+}
+
+class _WorkshopDashboardState extends State<WorkshopDashboard> {
+  bool _isScheduleExpanded = false;
+  bool _isPayrollExpanded = false;
 
   Future<void> _handleLogout(BuildContext context) async {
     final shouldLogout = await showDialog<bool>(
@@ -137,6 +146,59 @@ class WorkshopDashboard extends StatelessWidget {
                   }
                 }
               },
+            ),
+            ExpansionTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('Manage Foreman Schedule'),
+              initiallyExpanded: _isScheduleExpanded,
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  _isScheduleExpanded = expanded;
+                });
+              },
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.work_outline),
+                  title: const Text('Manage Gig Slots'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/manage-gig-slots');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.assignment),
+                  title: const Text('Manage Gig Applications'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/manage-applications');
+                  },
+                ),
+              ],
+            ),
+            // Separate Manage Payroll section
+            ExpansionTile(
+              leading: const Icon(Icons.payment),
+              title: const Text('Manage Payroll'),
+              initiallyExpanded: _isPayrollExpanded,
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  _isPayrollExpanded = expanded;
+                });
+              },
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.attach_money),
+                  title: const Text('Payroll'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/payroll');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.list_alt),
+                  title: const Text('View Payroll'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/view-payroll');
+                  },
+                ),
+              ],
             ),
           ],
         ),
