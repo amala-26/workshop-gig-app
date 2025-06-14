@@ -10,6 +10,8 @@ import 'view_inventory_page.dart';
 import 'add_inventory_page.dart';
 import 'request_inventory_page.dart';
 import 'request_status_page.dart';
+import 'edit_inventory_page.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,10 +70,15 @@ class MyApp extends StatelessWidget {
         '/signup': (context) => const SignUpPage(),
 
         // Inventory module pages
+        '/dashboard': (context) => const WorkshopDashboard(),
         '/view-inventory': (context) => ViewInventoryPage(),
         '/add-inventory': (context) => AddInventoryPage(),
         '/request-inventory': (context) => RequestInventoryPage(),
         '/view-requests': (context) => RequestStatusPage(),
+        '/edit-inventory': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+            return EditInventoryPage(itemId: args['itemId'], itemData: args['itemData']);
+          },
       },
       home: const LoginPage(),
     );

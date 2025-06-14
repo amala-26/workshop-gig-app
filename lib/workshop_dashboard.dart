@@ -3,6 +3,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'workshop_profile_page.dart';
 
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'workshop_profile_page.dart';
+
 class WorkshopDashboard extends StatelessWidget {
   const WorkshopDashboard({Key? key}) : super(key: key);
 
@@ -39,6 +44,50 @@ class WorkshopDashboard extends StatelessWidget {
         }
       }
     }
+  }
+
+  void _manageSuppliers(BuildContext context) {
+    Navigator.pushNamed(context, '/manage-suppliers');
+  }
+
+  void _showInventoryOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.inventory),
+              title: const Text('View Inventory'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/view-inventory');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.add_shopping_cart),
+              title: const Text('Request Inventory'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/request-inventory');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.receipt_long),
+              title: const Text('View Requests'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/view-requests');
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -97,27 +146,15 @@ class WorkshopDashboard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pushNamed(context, '/view-inventory');
-              },
-              icon: const Icon(Icons.inventory),
-              label: const Text('View Inventory'),
+              onPressed: () => _showInventoryOptions(context),
+              icon: const Icon(Icons.storage),
+              label: const Text('Inventory'),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pushNamed(context, '/request-inventory');
-              },
-              icon: const Icon(Icons.add_shopping_cart),
-              label: const Text('Request Inventory'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pushNamed(context, '/view-requests');
-              },
-              icon: const Icon(Icons.receipt_long),
-              label: const Text('View Requests'),
+              onPressed: () => _manageSuppliers(context),
+              icon: const Icon(Icons.group),
+              label: const Text('Manage Suppliers'),
             ),
           ],
         ),
