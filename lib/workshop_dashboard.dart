@@ -3,12 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'workshop_profile_page.dart';
 
-import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'workshop_profile_page.dart';
-
-
 class WorkshopDashboard extends StatefulWidget {
   const WorkshopDashboard({Key? key}) : super(key: key);
 
@@ -19,6 +13,7 @@ class WorkshopDashboard extends StatefulWidget {
 class _WorkshopDashboardState extends State<WorkshopDashboard> {
   bool _isScheduleExpanded = false;
   bool _isPayrollExpanded = false;
+  bool _isInventoryExpanded = false;
 
   Future<void> _handleLogout(BuildContext context) async {
     final shouldLogout = await showDialog<bool>(
@@ -53,50 +48,6 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
         }
       }
     }
-  }
-
-  void _manageSuppliers(BuildContext context) {
-    Navigator.pushNamed(context, '/manage-suppliers');
-  }
-
-  void _showInventoryOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.inventory),
-              title: const Text('View Inventory'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/view-inventory');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.add_shopping_cart),
-              title: const Text('Request Inventory'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/request-inventory');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.receipt_long),
-              title: const Text('View Requests'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/view-requests');
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -148,6 +99,50 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
               },
             ),
             ExpansionTile(
+              leading: const Icon(Icons.inventory),
+              title: const Text('Manage Inventory'),
+              initiallyExpanded: _isInventoryExpanded,
+              onExpansionChanged: (expanded) {
+                setState(() {
+                  _isInventoryExpanded = expanded;
+                });
+              },
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.list),
+                  title: const Text('View Inventory'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/view-inventory');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.shopping_cart),
+                  title: const Text('Request Inventory'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/request-inventory');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.group),
+                  title: const Text('Manage Suppliers'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/manage-suppliers');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.receipt),
+                  title: const Text('View Requests'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/view-requests');
+                  },
+                ),
+              ],
+            ),
+            ExpansionTile(
               leading: const Icon(Icons.calendar_today),
               title: const Text('Manage Foreman Schedule'),
               initiallyExpanded: _isScheduleExpanded,
@@ -173,7 +168,6 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
                 ),
               ],
             ),
-            // Separate Manage Payroll section
             ExpansionTile(
               leading: const Icon(Icons.payment),
               title: const Text('Manage Payroll'),
@@ -204,21 +198,9 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
         ),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton.icon(
-              onPressed: () => _showInventoryOptions(context),
-              icon: const Icon(Icons.storage),
-              label: const Text('Inventory'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () => _manageSuppliers(context),
-              icon: const Icon(Icons.group),
-              label: const Text('Manage Suppliers'),
-            ),
-          ],
+        child: Text(
+          'Welcome to the Workshop Dashboard!',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ),
     );
