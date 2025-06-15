@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-class ViewRatingsForeman extends StatelessWidget {
-  const ViewRatingsForeman({Key? key}) : super(key: key);
+class ViewRatingsWorkshop extends StatelessWidget {
+  const ViewRatingsWorkshop({Key? key}) : super(key: key);
 
   Widget _buildStarRow(int starCount) {
     return Row(
@@ -19,7 +19,7 @@ class ViewRatingsForeman extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('View Ratings (Foreman)'),
+        title: const Text('View Ratings (Workshop)'),
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
@@ -103,4 +103,4 @@ class ViewRatingsForeman extends StatelessWidget {
       ),
     );
   }
-}
+} 

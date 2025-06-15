@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'view_payroll_foreman.dart';
 import 'add_rating_foreman.dart';
 import 'view_rating_foreman.dart';
+import 'manage_rating_foreman.dart';
 import 'package:workshopgigapp/services/gig_service.dart';
 import 'package:workshopgigapp/controllers/gig_controller.dart';
 import 'package:workshopgigapp/screens/GigApplicationInterface.dart';
@@ -295,7 +296,7 @@ class _ForemanDashboardState extends State<ForemanDashboard> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const AddRatingForeman()),
+                      MaterialPageRoute(builder: (context) => const ManageRatingForeman()),
                     );
                   },
                 ),

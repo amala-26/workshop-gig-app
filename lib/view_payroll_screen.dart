@@ -64,7 +64,6 @@ class ViewPayrollScreen extends StatelessWidget {
                         DataColumn(label: Text('Recipient')),
                         DataColumn(label: Text('Amount'), numeric: true),
                         DataColumn(label: Text('Reference')),
-                        DataColumn(label: Text('Status')),
                       ],
                       rows: snapshot.data!.docs.map((document) {
                         final data = document.data() as Map<String, dynamic>;
@@ -72,7 +71,6 @@ class ViewPayrollScreen extends StatelessWidget {
                         final formattedDate = DateFormat('d/M/yyyy').format(date);
                         final amount = data['Payment_Amount'] ?? 0;
                         final reference = data['Payment_Reference'] ?? '';
-                        final status = data['Payment_Status'] ?? '';
                         final recipient = data['Foreman_Name'] ?? '';
 
                         return DataRow(cells: [
@@ -80,17 +78,6 @@ class ViewPayrollScreen extends StatelessWidget {
                           DataCell(Text(recipient)),
                           DataCell(Text(currencyFormat.format(amount))),
                           DataCell(Text(reference)),
-                          DataCell(
-                            Chip(
-                              label: Text(
-                                status,
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                              backgroundColor: status == 'Paid' 
-                                  ? Colors.green 
-                                  : Colors.orange,
-                            ),
-                          ),
                         ]);
                       }).toList(),
                     ),

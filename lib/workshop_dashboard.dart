@@ -12,6 +12,7 @@ import 'Manage_Shop_Inventory/request_status_page.dart';
 import 'Manage_Shop_Inventory/inventory_suppliers.dart';
 import 'workshop_payroll.dart';
 import 'view_payroll_screen.dart';
+import 'view_rating_foreman.dart';
 import 'screens/NotificationsScreen.dart';
 import 'services/notification_service.dart';
 
@@ -373,6 +374,19 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
                   },
                 ),
               ],
+            ),
+            ListTile(
+              leading: const Icon(Icons.star),
+              title: const Text('View Rating'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ViewRatingsForeman(),
+                  ),
+                );
+              },
             ),
           ],
         ),
