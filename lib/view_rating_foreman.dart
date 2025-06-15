@@ -30,7 +30,7 @@ class ViewRatingsForeman extends StatelessWidget {
             const SizedBox(height: 16),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('ratings').orderBy('ratingDate', descending: true).snapshots(),
+                stream: FirebaseFirestore.instance.collection('ratings').orderBy('Rating_Date', descending: true).snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return Center(child: Text('Error: \\${snapshot.error}'));
@@ -47,11 +47,11 @@ class ViewRatingsForeman extends StatelessWidget {
                     separatorBuilder: (_, __) => const SizedBox(height: 16),
                     itemBuilder: (context, i) {
                       final data = docs[i].data() as Map<String, dynamic>;
-                      final customerName = data['customerName'] ?? 'Unknown';
-                      final workshopId = data['workshopId'] ?? '';
-                      final starRating = data['starRating'] ?? 0;
-                      final feedback = data['feedbackComment'] ?? '';
-                      final date = (data['ratingDate'] as Timestamp?)?.toDate();
+                      final customerId = data['Customer_ID'] ?? 'Unknown';
+                      final workshopId = data['Workshop_ID'] ?? '';
+                      final starRating = data['Star_Rating'] ?? 0;
+                      final feedback = data['Feedback_Comment'] ?? '';
+                      final date = (data['Rating_Date'] as Timestamp?)?.toDate();
                       final formattedDate = date != null ? DateFormat('d/M/yyyy').format(date) : '';
                       return Container(
                         decoration: BoxDecoration(
@@ -75,8 +75,8 @@ class ViewRatingsForeman extends StatelessWidget {
                                     Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(customerName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                        Text('Task: $workshopId', style: const TextStyle(fontSize: 14)),
+                                        Text(customerId, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                        Text('Workshop: $workshopId', style: const TextStyle(fontSize: 14)),
                                       ],
                                     ),
                                   ],

@@ -45,13 +45,12 @@ class _AddRatingForemanState extends State<AddRatingForeman> {
     final now = DateTime.now();
     try {
       await FirebaseFirestore.instance.collection('ratings').doc(ratingId).set({
-        'ratingId': ratingId,
-        'customerName': _customerNameController.text.trim(),
-        'task': _taskController.text.trim(),
-        'starRating': _starRating,
-        'feedbackComment': _feedbackController.text.trim(),
-        'ratingDate': now,
-        'serviceName': widget.serviceName ?? '',
+        'Rating_ID': ratingId,
+        'Customer_ID': _customerNameController.text.trim(),
+        'Workshop_ID': widget.serviceName ?? '',
+        'Star_Rating': _starRating,
+        'Feedback_Comment': _feedbackController.text.trim(),
+        'Rating_Date': now,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rating submitted!')));
