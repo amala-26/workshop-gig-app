@@ -35,13 +35,7 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
     'Kilograms',
   ];
 
-  final List<String> suppliers = [
-    'CarPart Supplies Sdn Bhd',
-    'TopGear Malaysia',
-    'AutoTech Distributors',
-    'ProEngineers Supplier',
-    'Wong Supplies Sdn Bhd',
-  ];
+  final suppliersRef = FirebaseFirestore.instance.collection('suppliers');
 
   @override
   void initState() {
@@ -112,21 +106,28 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                 decoration: const InputDecoration(labelText: 'Storage Location'),
                 validator: (value) => value == null || value.isEmpty ? 'Please enter storage location' : null,
               ),
-              DropdownButtonFormField<String>(
-                value: selectedSupplier,
-                decoration: const InputDecoration(labelText: 'Supplier'),
-                items: suppliers.map((supplier) {
-                  return DropdownMenuItem(
-                    value: supplier,
-                    child: Text(supplier),
+              StreamBuilder<QuerySnapshot>(
+                stream: suppliersRef.snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const CircularProgressIndicator();
+                  final suppliers = snapshot.data!.docs.map((doc) => doc['name'] as String).toList();
+                  return DropdownButtonFormField<String>(
+                    value: selectedSupplier,
+                    decoration: const InputDecoration(labelText: 'Supplier'),
+                    items: suppliers.map((supplier) {
+                      return DropdownMenuItem(
+                        value: supplier,
+                        child: Text(supplier),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedSupplier = value;
+                      });
+                    },
+                    validator: (value) => value == null ? 'Please select a supplier' : null,
                   );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedSupplier = value;
-                  });
                 },
-                validator: (value) => value == null ? 'Please select a supplier' : null,
               ),
               const SizedBox(height: 20),
               ElevatedButton(
@@ -141,22 +142,10 @@ class _EditInventoryPageState extends State<EditInventoryPage> {
                       'Supplier': selectedSupplier,
                       'Updated_at': Timestamp.now(),
                     });
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Item updated successfully")));
-                    Navigator.pop(context);
-                  } else {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: Text('Missing Information'),
-                        content: Text('Please fill in all required fields.'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: Text('OK'),
-                          )
-                        ],
-                      ),
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Item updated successfully")),
                     );
+                    Navigator.pop(context);
                   }
                 },
                 child: const Text('Update Item'),

@@ -5,10 +5,11 @@ import 'screens/ManageGigSlots.dart';
 import 'screens/ManageGigApplication.dart';
 import 'services/gig_service.dart';
 import 'workshop_profile_page.dart';
-import 'view_inventory_page.dart';
-import 'add_inventory_page.dart';
-import 'request_inventory_page.dart';
-import 'request_status_page.dart';
+import 'Manage_Shop_Inventory/view_inventory_page.dart';
+import 'Manage_Shop_Inventory/add_inventory_page.dart';
+import 'Manage_Shop_Inventory/request_inventory_page.dart';
+import 'Manage_Shop_Inventory/request_status_page.dart';
+import 'Manage_Shop_Inventory/inventory_suppliers.dart';
 import 'workshop_payroll.dart';
 import 'view_payroll_screen.dart';
 
@@ -150,19 +151,6 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.add_box),
-                  title: const Text('Add Inventory'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddInventoryPage(),
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
                   leading: const Icon(Icons.shopping_cart),
                   title: const Text('Request Inventory'),
                   onTap: () {
@@ -193,7 +181,12 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
                   title: const Text('Manage Suppliers'),
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.pushNamed(context, '/manage-suppliers');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ManageSuppliersPage(),
+                      ),
+                    );
                   },
                 ),
               ],

@@ -13,16 +13,10 @@ class RequestItemDetailPage extends StatefulWidget {
 
 class _RequestItemDetailPageState extends State<RequestItemDetailPage> {
   final quantity = TextEditingController();
-  String? selectedSupplier;
   final requestCollection = FirebaseFirestore.instance.collection('inventory_requests');
+  final suppliersRef = FirebaseFirestore.instance.collection('suppliers');
 
-  final List<String> suppliers = [
-    'CarPart Supplies Sdn Bhd',
-    'TopGear Malaysia',
-    'AutoTech Distributors',
-    'ProEngineers Supplier',
-    'Wong Supplies Sdn Bhd',
-  ];
+  String? selectedSupplier;
 
   @override
   Widget build(BuildContext context) {
@@ -43,21 +37,29 @@ class _RequestItemDetailPageState extends State<RequestItemDetailPage> {
               decoration: InputDecoration(labelText: 'Requested Quantity'),
               keyboardType: TextInputType.number,
             ),
-            DropdownButtonFormField<String>(
-              value: selectedSupplier,
-              decoration: InputDecoration(labelText: 'Select Supplier'),
-              items: suppliers.map((supplier) {
-                return DropdownMenuItem(
-                  value: supplier,
-                  child: Text(supplier),
+            SizedBox(height: 10),
+            StreamBuilder<QuerySnapshot>(
+              stream: suppliersRef.snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return CircularProgressIndicator();
+                final suppliers = snapshot.data!.docs.map((doc) => doc['name'] as String).toList();
+                return DropdownButtonFormField<String>(
+                  value: selectedSupplier,
+                  decoration: InputDecoration(labelText: 'Select Supplier'),
+                  items: suppliers.map((supplier) {
+                    return DropdownMenuItem(
+                      value: supplier,
+                      child: Text(supplier),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedSupplier = value;
+                    });
+                  },
+                  validator: (value) => value == null ? 'Please select a supplier' : null,
                 );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  selectedSupplier = value;
-                });
               },
-              validator: (value) => value == null ? 'Please select a supplier' : null,
             ),
             SizedBox(height: 20),
             ElevatedButton(
@@ -67,7 +69,7 @@ class _RequestItemDetailPageState extends State<RequestItemDetailPage> {
                     context: context,
                     builder: (context) => AlertDialog(
                       title: Text('Missing Information'),
-                      content: Text('Please enter quantity and select a supplier.'),
+                      content: Text('Please enter requested quantity and select a supplier.'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
@@ -83,17 +85,13 @@ class _RequestItemDetailPageState extends State<RequestItemDetailPage> {
                   'Request_ID': requestId,
                   'Item_ID': widget.itemId,
                   'Requested_Quantity': int.parse(quantity.text),
-                  'Supplier': selectedSupplier,
                   'Request_Date': Timestamp.now(),
                   'Status': 'Pending',
                   'Status_date': Timestamp.now(),
+                  'Supplier': selectedSupplier,
                 });
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Request Submitted Successfully")),
-                  );
-                  Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false);
-                }
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Request Submitted")));
+                Navigator.pop(context);
               },
               child: Text("Submit Request"),
             )

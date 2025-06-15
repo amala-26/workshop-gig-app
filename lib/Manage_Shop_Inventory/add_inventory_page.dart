@@ -30,14 +30,8 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
     'Kilograms',
   ];
 
-  final List<String> suppliers = [
-    'CarPart Supplies Sdn Bhd',
-    'TopGear Malaysia',
-    'AutoTech Distributors',
-    'ProEngineers Supplier',
-  ];
-
   final inventory = FirebaseFirestore.instance.collection('inventory');
+  final suppliersRef = FirebaseFirestore.instance.collection('suppliers');
 
   @override
   Widget build(BuildContext context) {
@@ -96,21 +90,28 @@ class _AddInventoryPageState extends State<AddInventoryPage> {
               decoration: InputDecoration(labelText: 'Storage Location'),
               validator: (value) => value == null || value.isEmpty ? 'Please enter storage location' : null,
             ),
-            DropdownButtonFormField<String>(
-              value: selectedSupplier,
-              hint: Text('Select Supplier'),
-              items: suppliers.map((supplier) {
-                return DropdownMenuItem(
-                  value: supplier,
-                  child: Text(supplier),
+            StreamBuilder<QuerySnapshot>(
+              stream: suppliersRef.snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return CircularProgressIndicator();
+                final suppliers = snapshot.data!.docs.map((doc) => doc['name'] as String).toList();
+                return DropdownButtonFormField<String>(
+                  value: selectedSupplier,
+                  hint: Text('Select Supplier'),
+                  items: suppliers.map((supplier) {
+                    return DropdownMenuItem(
+                      value: supplier,
+                      child: Text(supplier),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedSupplier = value;
+                    });
+                  },
+                  validator: (value) => value == null ? 'Please select a supplier' : null,
                 );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  selectedSupplier = value;
-                });
               },
-              validator: (value) => value == null ? 'Please select a supplier' : null,
             ),
             SizedBox(height: 20),
             ElevatedButton(
