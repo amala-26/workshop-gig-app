@@ -6,8 +6,64 @@ import 'view_payroll_foreman.dart';
 import 'add_rating_foreman.dart';
 import 'view_rating_foreman.dart';
 
-class ForemanDashboard extends StatelessWidget {
+class ForemanDashboard extends StatefulWidget {
   const ForemanDashboard({Key? key}) : super(key: key);
+
+  @override
+  State<ForemanDashboard> createState() => _ForemanDashboardState();
+}
+
+class _ForemanDashboardState extends State<ForemanDashboard> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  String _userName = '';
+  String _userEmail = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection('foremen')
+          .doc(user.uid)
+          .get();
+      if (doc.exists) {
+        setState(() {
+          _userName = doc.data()?['name'] ?? '';
+          _userEmail = doc.data()?['email'] ?? '';
+        });
+      }
+    }
+  }
+
+  Future<void> _navigateToProfile() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection('foremen')
+          .doc(user.uid)
+          .get();
+      if (doc.exists && mounted) {
+        Navigator.pop(context);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ForemanProfilePage(
+              initialData: doc.data() ?? {},
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile not found.')),
+        );
+      }
+    }
+  }
 
   Future<void> _handleLogout(BuildContext context) async {
     // Show confirmation dialog
@@ -62,34 +118,42 @@ class ForemanDashboard extends StatelessWidget {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Color(0xFF1A237E)),
-              child: Text('Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                color: Color(0xFF1A237E),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.person, size: 40, color: Color(0xFF1A237E)),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _userName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    _userEmail,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
             ),
             // Profile Section
             ListTile(
               leading: const Icon(Icons.person),
               title: const Text('Profile'),
-              onTap: () async {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user != null) {
-                  final doc = await FirebaseFirestore.instance.collection('foremen').doc(user.uid).get();
-                  if (doc.exists) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ForemanProfilePage(
-                          initialData: doc.data() ?? {},
-                        ),
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Profile not found.')),
-                    );
-                  }
-                }
-              },
+              onTap: _navigateToProfile,
             ),
             
             // Payroll Section
@@ -142,10 +206,32 @@ class ForemanDashboard extends StatelessWidget {
           ],
         ),
       ),
-      body: const Center(
-        child: Text(
-          'Welcome to the Foreman Dashboard!',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.dashboard,
+              size: 100,
+              color: Color(0xFF1A237E),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Welcome, $_userName',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Use the menu to navigate',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
         ),
       ),
     );
