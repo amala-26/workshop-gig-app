@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'foreman_profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'view_payroll_foreman.dart';
+import 'add_rating_foreman.dart';
+import 'view_rating_foreman.dart';
 
 class ForemanDashboard extends StatelessWidget {
   const ForemanDashboard({Key? key}) : super(key: key);
@@ -63,6 +66,7 @@ class ForemanDashboard extends StatelessWidget {
               decoration: BoxDecoration(color: Color(0xFF1A237E)),
               child: Text('Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
             ),
+            // Profile Section
             ListTile(
               leading: const Icon(Icons.person),
               title: const Text('Profile'),
@@ -87,6 +91,54 @@ class ForemanDashboard extends StatelessWidget {
                 }
               },
             ),
+            
+            // Payroll Section
+            const Divider(),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Text('Payroll', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.payment),
+              title: const Text('View Payroll'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ViewPayrollForeman()),
+                );
+              },
+            ),
+            
+            // Ratings Section
+            const Divider(),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Text('Ratings', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            ExpansionTile(
+              leading: const Icon(Icons.star),
+              title: const Text('Manage Ratings'),
+              children: [
+                ListTile(
+                  title: const Text('Add Rating'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AddRatingForeman()),
+                    );
+                  },
+                ),
+                ListTile(
+                  title: const Text('View Ratings'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ViewRatingsForeman()),
+                    );
+                  },
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -98,4 +150,4 @@ class ForemanDashboard extends StatelessWidget {
       ),
     );
   }
-} 
+}

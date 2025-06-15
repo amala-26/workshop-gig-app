@@ -13,6 +13,9 @@ import 'request_status_page.dart';
 import 'edit_inventory_page.dart';
 import 'workshop_payroll.dart';
 import 'view_payroll_screen.dart';
+import 'view_payroll_foreman.dart';
+import 'add_rating_foreman.dart';
+import 'view_rating_foreman.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -84,6 +87,14 @@ class MyApp extends StatelessWidget {
         // Payroll management routes
         '/add-payroll': (context) => const WorkshopPayroll(),
         '/view-payroll': (context) => const ViewPayrollScreen(),
+
+      
+    '/view_payroll_foreman': (context) => const ViewPayrollForeman(),
+  '/add_rating_foreman': (context) => const AddRatingForeman(),
+  '/view_ratings_foreman': (context) => const ViewRatingsForeman(),
+  
+  
+
       },
 
       debugShowCheckedModeBanner: false,
