@@ -70,6 +70,41 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
     }
   }
 
+  Future<void> _showLogoutConfirmation() async {
+    final bool? shouldLogout = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // User must tap button to dismiss
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Logout'),
+          content: const Text('Are you sure you want to logout?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(false); // Return false
+              },
+            ),
+            TextButton(
+              child: const Text('Logout'),
+              onPressed: () {
+                Navigator.of(context).pop(true); // Return true
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    // If user confirmed logout, proceed with sign out
+    if (shouldLogout == true) {
+      await _auth.signOut();
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -78,12 +113,7 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await _auth.signOut();
-              if (mounted) {
-                Navigator.pushReplacementNamed(context, '/login');
-              }
-            },
+            onPressed: _showLogoutConfirmation, // Call confirmation dialog
           ),
         ],
       ),
