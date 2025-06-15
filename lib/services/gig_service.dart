@@ -1,65 +1,149 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart'; // Import for TimeOfDay
-import 'package:intl/intl.dart'; // Import for DateFormat
+import '../models/gig_model.dart';
 
 class GigService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Get all gigs
+  // Get Firestore instance
+  FirebaseFirestore getFirestore() => _firestore;
+
+  // Add a new gig slot
+  Future<Map<String, dynamic>> addGigSlot(GigModel gig) async {
+    try {
+      // Check for redundancy
+      final redundancyResult = await checkGigSlotRedundancy(gig);
+      if (!redundancyResult['success']) {
+        return redundancyResult;
+      }
+
+      // Add the gig slot
+      final docRef = await _firestore.collection('gigs').add(gig.toMap());
+      return {
+        'success': true,
+        'message': 'Gig slot added successfully',
+        'gigId': docRef.id,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error adding gig slot: $e',
+      };
+    }
+  }
+
+  // Check for redundant gig slots
+  Future<Map<String, dynamic>> checkGigSlotRedundancy(GigModel newGig) async {
+    try {
+      // Get all gigs for the same date
+      final querySnapshot = await _firestore
+          .collection('gigs')
+          .where('date', isEqualTo: newGig.date)
+          .get();
+
+      // Check for exact matches
+      for (var doc in querySnapshot.docs) {
+        final existingGig = GigModel.fromMap(doc.data());
+        if (existingGig.location == newGig.location &&
+            existingGig.startTime == newGig.startTime &&
+            existingGig.endTime == newGig.endTime &&
+            existingGig.title == newGig.title) {
+          return {
+            'success': false,
+            'message': 'A gig slot with the same job description already exists at this location, date and time. Try again.',
+          };
+        }
+      }
+
+      // Check for overlapping time slots
+      for (var doc in querySnapshot.docs) {
+        final existingGig = GigModel.fromMap(doc.data());
+        if (existingGig.location == newGig.location) {
+          // Convert time strings to DateTime for comparison
+          final newStart = DateTime.parse('2024-01-01 ${newGig.startTime}');
+          final newEnd = DateTime.parse('2024-01-01 ${newGig.endTime}');
+          final existingStart = DateTime.parse('2024-01-01 ${existingGig.startTime}');
+          final existingEnd = DateTime.parse('2024-01-01 ${existingGig.endTime}');
+
+          // Check for overlap
+          if ((newStart.isBefore(existingEnd) && newEnd.isAfter(existingStart))) {
+            return {
+              'success': false,
+              'message': 'This time slot overlaps with an existing gig at the same location. Try again.',
+            };
+          }
+        }
+      }
+
+      return {'success': true};
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error checking redundancy: $e',
+      };
+    }
+  }
+
+  // Get all gig slots
   Stream<QuerySnapshot> getGigs() {
     return _firestore.collection('gigs').snapshots();
   }
 
-  // Get gig by ID
+  // Get gig slots by owner ID
+  Stream<QuerySnapshot> getGigsByOwner(String ownerId) {
+    return _firestore
+        .collection('gigs')
+        .where('ownerId', isEqualTo: ownerId)
+        .snapshots();
+  }
+
+  // Get a specific gig slot by ID
   Future<DocumentSnapshot> getGigById(String gigId) {
     return _firestore.collection('gigs').doc(gigId).get();
   }
 
-  // Create a new gig
-  Future<void> createGig(Map<String, dynamic> gigData) {
-    return _firestore.collection('gigs').add(gigData);
+  // Update a gig slot
+  Future<Map<String, dynamic>> updateGigSlot(String gigId, Map<String, dynamic> updates) async {
+    try {
+      await _firestore.collection('gigs').doc(gigId).update(updates);
+      return {
+        'success': true,
+        'message': 'Gig slot updated successfully',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error updating gig slot: $e',
+      };
+    }
   }
 
-  // Update a gig
-  Future<void> updateGig(String gigId, Map<String, dynamic> gigData) {
-    return _firestore.collection('gigs').doc(gigId).update(gigData);
+  // Delete a gig slot
+  Future<Map<String, dynamic>> deleteGigSlot(String gigId) async {
+    try {
+      await _firestore.collection('gigs').doc(gigId).delete();
+      return {
+        'success': true,
+        'message': 'Gig slot deleted successfully',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Error deleting gig slot: $e',
+      };
+    }
   }
 
-  // Delete a gig
-  Future<void> deleteGig(String gigId) {
-    return _firestore.collection('gigs').doc(gigId).delete();
+  // Alias methods for backward compatibility
+  Future<String?> createGig(Map<String, dynamic> gigData) async {
+    final DocumentReference docRef = await _firestore.collection('gigs').add(gigData);
+    return docRef.id;
   }
 
-  // Check for gig slot redundancy (E1)
-  Future<bool> checkGigSlotRedundancy(
-      String title,
-      String location,
-      DateTime date,
-      TimeOfDay startTime,
-      TimeOfDay endTime,
-      ) async {
-    // Convert TimeOfDay to a formatted string using 'HH:mm' for unambiguous storage/querying
-    final String formattedStartTime = DateFormat('HH:mm').format(DateTime(date.year, date.month, date.day, startTime.hour, startTime.minute));
-    final String formattedEndTime = DateFormat('HH:mm').format(DateTime(date.year, date.month, date.day, endTime.hour, endTime.minute));
-
-    final querySnapshot = await _firestore
-        .collection('gigs')
-        .where('title', isEqualTo: title)
-        .where('location', isEqualTo: location)
-        .where('date', isEqualTo: Timestamp.fromDate(date))
-        .where('startTime', isEqualTo: formattedStartTime)
-        .where('endTime', isEqualTo: formattedEndTime)
-        .get();
-    return querySnapshot.docs.isNotEmpty;
+  Future<void> updateGig(String gigId, Map<String, dynamic> gigData) async {
+    await _firestore.collection('gigs').doc(gigId).update(gigData);
   }
 
-  // Check if foremen have booked a slot before deletion
-  Future<bool> hasBookedForemen(String gigId) async {
-    // Assuming a 'applications' collection where foremen book gigs
-    final querySnapshot = await _firestore
-        .collection('applications')
-        .where('gigId', isEqualTo: gigId)
-        .get();
-    return querySnapshot.docs.isNotEmpty;
+  Future<void> deleteGig(String gigId) async {
+    await _firestore.collection('gigs').doc(gigId).delete();
   }
 } 

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../services/gig_service.dart';
+import '../models/gig_model.dart';
 import 'package:flutter/services.dart'; // Import for FilteringTextInputFormatter
+import '../services/notification_service.dart'; // Import NotificationService
 
 class EditGigSlot extends StatefulWidget {
   // These parameters are still needed because ManageGigSlots passes them
@@ -32,6 +34,7 @@ class _EditGigSlotState extends State<EditGigSlot> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedStartTime;
   TimeOfDay? _selectedEndTime;
+  final NotificationService _notificationService = NotificationService(); // Instantiate NotificationService
 
   @override
   void initState() {
@@ -130,7 +133,33 @@ class _EditGigSlotState extends State<EditGigSlot> {
           'remuneration': double.parse(_remunerationController.text),
           // foremanNeeded and location are not updated as per requirement
         };
-        await widget.gigService.updateGig(widget.gigId, gigData);
+        await widget.gigService.updateGigSlot(widget.gigId, gigData);
+
+        // Send notification to relevant foremen
+        final QuerySnapshot applicationsSnapshot = await FirebaseFirestore.instance
+            .collection('gigApplications')
+            .where('gigId', isEqualTo: widget.gigId)
+            .get();
+
+        final String formattedDate = DateFormat('MMM dd').format(_selectedDate!); // Format the date once
+
+        print('Attempting to send gig edited notification to relevant foremen.');
+        for (var appDoc in applicationsSnapshot.docs) {
+          final String foremanId = appDoc['foremanId'];
+          print('Sending gig edited notification to foreman: $foremanId');
+          await _notificationService.addNotification(
+            type: 'gig_update',
+            recipientId: foremanId,
+            senderId: widget.initialData['ownerId'], // Assuming ownerId is available in initialData
+            gigId: widget.gigId,
+            message: 'The gig slot "${_titleController.text}" for $formattedDate has been edited. Please review the new details.',
+            action: 'edited',
+            gigTitle: _titleController.text,
+            gigDate: Timestamp.fromDate(_selectedDate!),
+          );
+        }
+        print('Gig edited notifications sent successfully (if no error thrown).');
+
         _showSnackBar('Gig slot updated successfully!');
         if (context.mounted) {
           Navigator.pop(context, true);

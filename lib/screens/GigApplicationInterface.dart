@@ -1,0 +1,633 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/notification_service.dart'; // Import NotificationService
+
+class GigApplicationInterface extends StatefulWidget {
+  const GigApplicationInterface({Key? key}) : super(key: key);
+
+  @override
+  State<GigApplicationInterface> createState() => _GigApplicationInterfaceState();
+}
+
+class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
+  // List<dynamic> availableSlots = []; // This will now be managed by StreamBuilder
+  String? _selectedLocation;
+  DateTime? _selectedFilterDate;
+  String? _selectedFilterTime;
+  String? _selectedJobType;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  User? _currentUser;
+  final NotificationService _notificationService = NotificationService(); // Instantiate NotificationService
+
+  @override
+  void initState() {
+    super.initState();
+    _getCurrentUser();
+    // _displaySlots(); // Removed as StreamBuilder will handle initial load and updates
+  }
+
+  void _getCurrentUser() {
+    _currentUser = _auth.currentUser;
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _selectedLocation = null;
+      _selectedFilterDate = null;
+      _selectedFilterTime = null;
+      _selectedJobType = null;
+    });
+    // _displaySlots(); // Not needed with StreamBuilder
+  }
+
+  // _displaySlots method will be removed/refactored into StreamBuilder
+
+  void _selectSlot(String gigID) {
+    _showConfirmApplicationDialog(gigID);
+  }
+
+  void _showConfirmApplicationDialog(String gigID) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Application'),
+          content: const Text('Are you sure you want to apply for this slot?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Yes'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _applyForGig(gigID);
+              },
+            ),
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _applyForGig(String gigId) async {
+    if (_currentUser == null) {
+      _showSnackBar('You must be logged in to apply for a gig.', isError: true);
+      return;
+    }
+
+    final String foremanId = _currentUser!.uid;
+
+    try {
+      // 1. Fetch the gig details to check foremenNeeded and foremenAssigned
+      final DocumentSnapshot gigDoc = await FirebaseFirestore.instance.collection('gigs').doc(gigId).get();
+      if (!gigDoc.exists) {
+        _showSlotNotAvailableDialog();
+        return;
+      }
+
+      final int foremenNeeded = (gigDoc['foremenNeeded'] as num?)?.toInt() ?? 0;
+      final Map<String, dynamic>? gigData = gigDoc.data() as Map<String, dynamic>?;
+      final int foremenAssigned = (gigData?['foremenAssigned'] as num?)?.toInt() ?? 0; // More robust null check
+
+      // Rule 1: Check if the slot has reached its required number of foremen.
+      if (foremenAssigned >= foremenNeeded) {
+        _showSlotNotAvailableDialog();
+        return;
+      }
+
+      // 2. Check for overlapping slots (Rule 2)
+      final Timestamp gigDateTimestamp = gigDoc['date'] as Timestamp;
+      final DateTime gigStartDate = gigDateTimestamp.toDate();
+      final String gigStartTimeStr = gigDoc['startTime'] ?? '';
+      final String gigEndTimeStr = gigDoc['endTime'] ?? '';
+
+      final DateTime selectedGigStart = DateTime(
+        gigStartDate.year,
+        gigStartDate.month,
+        gigStartDate.day,
+        int.parse(gigStartTimeStr.split(':')[0]),
+        int.parse(gigStartTimeStr.split(':')[1]),
+      );
+      final DateTime selectedGigEnd = DateTime(
+        gigStartDate.year,
+        gigStartDate.month,
+        gigStartDate.day,
+        int.parse(gigEndTimeStr.split(':')[0]),
+        int.parse(gigEndTimeStr.split(':')[1]),
+      );
+
+      final QuerySnapshot existingApplications = await FirebaseFirestore.instance
+          .collection('gigApplications')
+          .where('foremanId', isEqualTo: foremanId)
+          .where('status', isEqualTo: 'Approved') // Only check against approved gigs
+          .get();
+
+      for (var appDoc in existingApplications.docs) {
+        final String existingGigId = appDoc['gigId'];
+        if (existingGigId == gigId) continue; // Skip the current gig if already applied and approved
+
+        final DocumentSnapshot existingGigDoc = await FirebaseFirestore.instance.collection('gigs').doc(existingGigId).get();
+        if (!existingGigDoc.exists) continue;
+
+        final Timestamp existingGigDateTimestamp = existingGigDoc['date'] as Timestamp;
+        final DateTime existingGigDate = existingGigDateTimestamp.toDate();
+        final String existingGigStartTimeStr = existingGigDoc['startTime'] ?? '';
+        final String existingGigEndTimeStr = existingGigDoc['endTime'] ?? '';
+
+        final DateTime existingGigStart = DateTime(
+          existingGigDate.year,
+          existingGigDate.month,
+          existingGigDate.day,
+          int.parse(existingGigStartTimeStr.split(':')[0]),
+          int.parse(existingGigStartTimeStr.split(':')[1]),
+        );
+        final DateTime existingGigEnd = DateTime(
+          existingGigDate.year,
+          existingGigDate.month,
+          existingGigDate.day,
+          int.parse(existingGigEndTimeStr.split(':')[0]),
+          int.parse(existingGigEndTimeStr.split(':')[1]),
+        );
+
+        // Check for overlap
+        if (selectedGigStart.isBefore(existingGigEnd) && selectedGigEnd.isAfter(existingGigStart)) {
+          _showSnackBar('You already have an approved gig that overlaps with this time slot.', isError: true);
+          return;
+        }
+      }
+
+      // 3. Add the application to Firestore within a transaction
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final applicationRef = FirebaseFirestore.instance.collection('gigApplications').doc();
+        final gigRef = FirebaseFirestore.instance.collection('gigs').doc(gigId);
+
+        final gigSnapshotForUpdate = await transaction.get(gigRef);
+        final Map<String, dynamic> gigDataForUpdate = gigSnapshotForUpdate.data() as Map<String, dynamic>;
+        int currentForemenAssigned = (gigDataForUpdate.containsKey('foremenAssigned') ? gigDataForUpdate['foremenAssigned'] as num? : 0)?.toInt() ?? 0;
+
+        print('Before application: Gig ID: $gigId, currentForemenAssigned: $currentForemenAssigned');
+
+        transaction.set(applicationRef, {
+          'foremanId': foremanId,
+          'gigId': gigId,
+          'status': 'Pending',
+          'applicationDate': Timestamp.now(),
+        });
+
+        transaction.update(gigRef, {
+          'foremenAssigned': currentForemenAssigned + 1,
+        });
+        print('After application: Gig ID: $gigId, newForemenAssigned: ${currentForemenAssigned + 1}');
+
+        // Get ownerId and foremanName for notification
+        final String ownerId = gigDoc['ownerId'];
+        final String gigTitle = gigDoc['title'] ?? 'Unknown Gig';
+        final Timestamp gigDate = gigDoc['date'] as Timestamp;
+
+        DocumentSnapshot foremanDoc = await FirebaseFirestore.instance.collection('foremen').doc(foremanId).get();
+        String foremanName = foremanDoc['name'] ?? 'A foreman'; // Default name if not found
+
+        // Send notification to workshop owner
+        print('Attempting to send new application notification to owner: $ownerId');
+        print('Foreman Name: $foremanName, Gig Title: $gigTitle, Gig Date: $gigDate');
+        await _notificationService.addNotification(
+          type: 'new_application',
+          recipientId: ownerId,
+          senderId: foremanId,
+          gigId: gigId,
+          applicationId: applicationRef.id,
+          message: '$foremanName applied for "$gigTitle" gig.',
+          foremanName: foremanName,
+          gigTitle: gigTitle,
+          gigDate: gigDate,
+        );
+        print('New application notification sent successfully (if no error thrown).');
+      });
+
+      _showApplicationSubmittedDialog();
+      // _displaySlots(); // Refresh list to reflect changes (e.g., if foremenNeeded was reached)
+    } catch (e) {
+      print('Error applying for gig: $e');
+      _showSnackBar('Failed to apply for gig: $e', isError: true);
+    }
+  }
+
+  void _showApplicationSubmittedDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Application Submitted'),
+          content: const Text("Application submitted successfully. You will be notified once it's reviewed."),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Optionally refresh the gig list
+                // _displaySlots(); // Not needed with StreamBuilder
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSlotNotAvailableDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Gig Slot Not Available'),
+          content: const Text('The selected slot is no longer available. Please choose another slot.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Optionally refresh the gig list
+                // _displaySlots(); // Not needed with StreamBuilder
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_currentUser == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Available Gigs')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Available Gigs'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _resetFilters,
+            tooltip: 'Reset Filters',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Wrap(
+              spacing: 8.0, // horizontal spacing between chips
+              runSpacing: 4.0, // vertical spacing between lines of chips
+              children: [
+                _buildFilterChip('Location', Icons.location_on, (isSelected) async {
+                  print('Location filter clicked. isSelected: $isSelected');
+                  if (!isSelected) {
+                    setState(() {
+                      _selectedLocation = null;
+                      print('Location filter cleared: $_selectedLocation');
+                    });
+                  } else {
+                    final String? location = await _showLocationPickerDialog();
+                    if (location != null) {
+                      setState(() {
+                        _selectedLocation = location;
+                        print('Location filter applied: $_selectedLocation');
+                      });
+                    }
+                  }
+                  // _displaySlots(); // Not needed with StreamBuilder
+                }),
+                _buildFilterChip('Date', Icons.calendar_today, (isSelected) async {
+                  print('Date filter clicked. isSelected: $isSelected');
+                  if (!isSelected) {
+                    setState(() {
+                      _selectedFilterDate = null;
+                      print('Date filter cleared: $_selectedFilterDate');
+                    });
+                  } else {
+                    final DateTime? picked = await showDatePicker(
+                      context: context,
+                      initialDate: _selectedFilterDate ?? DateTime.now(),
+                      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _selectedFilterDate = picked;
+                        print('Date filter applied: $_selectedFilterDate');
+                      });
+                    }
+                  }
+                  // _displaySlots(); // Not needed with StreamBuilder
+                }),
+                _buildFilterChip('Time', Icons.access_time, (isSelected) async {
+                  print('Time filter clicked. isSelected: $isSelected');
+                  if (!isSelected) {
+                    setState(() {
+                      _selectedFilterTime = null;
+                      print('Time filter cleared: $_selectedFilterTime');
+                    });
+                  } else {
+                    final TimeOfDay? picked = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.now(),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _selectedFilterTime = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+                        print('Time filter applied: $_selectedFilterTime');
+                      });
+                    }
+                  }
+                  // _displaySlots(); // Not needed with StreamBuilder
+                }),
+                _buildFilterChip('Job Type', Icons.work, (isSelected) async {
+                  print('Job Type filter clicked. isSelected: $isSelected');
+                  if (!isSelected) {
+                    setState(() {
+                      _selectedJobType = null;
+                      print('Job Type filter cleared: $_selectedJobType');
+                    });
+                  } else {
+                    final String? jobType = await _showJobTypePickerDialog();
+                    if (jobType != null) {
+                      setState(() {
+                        _selectedJobType = jobType;
+                        print('Job Type filter applied: $_selectedJobType');
+                      });
+                    }
+                  }
+                  // _displaySlots(); // Not needed with StreamBuilder
+                }),
+              ],
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('gigs').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No available gigs at the moment.'));
+                }
+
+                List<QueryDocumentSnapshot> gigs = snapshot.data!.docs;
+
+                // Apply filters in-memory after fetching all gigs from the stream
+                if (_selectedLocation != null && _selectedLocation!.isNotEmpty) {
+                  gigs = gigs.where((gig) => gig['location'] == _selectedLocation).toList();
+                }
+
+                if (_selectedFilterDate != null) {
+                  gigs = gigs.where((gig) {
+                    Timestamp dateTimestamp = gig['date'] as Timestamp;
+                    DateTime gigDate = dateTimestamp.toDate();
+                    return gigDate.year == _selectedFilterDate!.year &&
+                           gigDate.month == _selectedFilterDate!.month &&
+                           gigDate.day == _selectedFilterDate!.day;
+                  }).toList();
+                }
+
+                if (_selectedFilterTime != null && _selectedFilterTime!.isNotEmpty) {
+                  gigs = gigs.where((gig) => gig['startTime'] == _selectedFilterTime).toList();
+                }
+
+                if (_selectedJobType != null && _selectedJobType!.isNotEmpty) {
+                  gigs = gigs.where((gig) => gig['title'] == _selectedJobType).toList();
+                }
+
+                // Further filter out gigs where foremenAssigned >= foremenNeeded
+                gigs = gigs.where((gig) {
+                  final int foremenNeeded = (gig['foremenNeeded'] as num?)?.toInt() ?? 0;
+                  final int foremenAssigned = (gig['foremenAssigned'] as num?)?.toInt() ?? 0;
+                  return foremenAssigned < foremenNeeded;
+                }).toList();
+
+                if (gigs.isEmpty) {
+                  return const Center(child: Text('No available gigs matching your filters.'));
+                }
+
+                return ListView.builder(
+                  itemCount: gigs.length,
+                  itemBuilder: (context, index) {
+                    var gig = gigs[index].data() as Map<String, dynamic>;
+                    String gigID = gigs[index].id;
+
+                    // Safely extract and format data
+                    String title = gig['title'] ?? 'N/A';
+                    double remuneration = (gig['remuneration'] as num?)?.toDouble() ?? 0.0;
+                    String location = gig['location'] ?? 'N/A';
+
+                    Timestamp dateTimestamp = gig['date'] as Timestamp? ?? Timestamp.now();
+                    DateTime gigDate = dateTimestamp.toDate();
+                    String formattedDate = DateFormat('MMMM dd, yyyy').format(gigDate);
+
+                    String startTime = gig['startTime'] ?? '';
+                    String endTime = gig['endTime'] ?? '';
+                    String formattedTime = '';
+                    if (startTime.isNotEmpty && endTime.isNotEmpty) {
+                      formattedTime = '$startTime - $endTime';
+                    } else if (startTime.isNotEmpty) {
+                      formattedTime = startTime;
+                    } else if (endTime.isNotEmpty) {
+                      formattedTime = endTime;
+                    }
+
+                    int foremenNeeded = (gig['foremenNeeded'] as num?)?.toInt() ?? 0;
+                    int foremenAssigned = (gig['foremenAssigned'] as num?)?.toInt() ?? 0;
+
+                    return Card(
+                      margin: const EdgeInsets.all(8.0),
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: InkWell(
+                        onTap: () => _selectSlot(gigID),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1A237E),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              _buildInfoRow(Icons.monetization_on, 'RM ${remuneration.toStringAsFixed(2)}/hr'),
+                              _buildInfoRow(Icons.location_on, location),
+                              _buildInfoRow(Icons.calendar_today, formattedDate),
+                              _buildInfoRow(Icons.access_time, formattedTime),
+                              _buildInfoRow(Icons.people,
+                                  'Foremen Needed: $foremenAssigned / $foremenNeeded'), // Display current vs needed
+                              const SizedBox(height: 16),
+                              Center(
+                                child: ElevatedButton(
+                                  onPressed: () => _selectSlot(gigID),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF1A237E),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: const Text('Apply for Gig'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, IconData icon, Function(bool) onSelected) {
+    bool isSelected = false;
+    if (label == 'Location') {
+      isSelected = _selectedLocation != null;
+    } else if (label == 'Date') {
+      isSelected = _selectedFilterDate != null;
+    } else if (label == 'Time') {
+      isSelected = _selectedFilterTime != null;
+    } else if (label == 'Job Type') {
+      isSelected = _selectedJobType != null;
+    }
+
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (bool selected) {
+        onSelected(selected);
+      },
+      avatar: Icon(icon),
+      selectedColor: const Color(0xFF1A237E),
+      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
+      checkmarkColor: Colors.white,
+    );
+  }
+
+  Future<String?> _showLocationPickerDialog() async {
+    final QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('gigs').get();
+    final List<String> locations = snapshot.docs
+        .map((doc) => doc['location'] as String)
+        .where((location) => location.isNotEmpty)
+        .toSet()
+        .toList();
+
+    return await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Location'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: locations.map((location) {
+                return ListTile(
+                  title: Text(location),
+                  onTap: () {
+                    Navigator.of(context).pop(location);
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<String?> _showJobTypePickerDialog() async {
+    final QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('gigs').get();
+    final List<String> jobTypes = snapshot.docs
+        .map((doc) => doc['title'] as String)
+        .where((title) => title.isNotEmpty)
+        .toSet()
+        .toList();
+
+    return await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Job Type'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: jobTypes.map((jobType) {
+                return ListTile(
+                  title: Text(jobType),
+                  onTap: () {
+                    Navigator.of(context).pop(jobType);
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey[600]),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: TextStyle(color: Colors.grey[800]),
+          ),
+        ],
+      ),
+    );
+  }
+} 

@@ -12,6 +12,8 @@ import 'Manage_Shop_Inventory/request_status_page.dart';
 import 'Manage_Shop_Inventory/inventory_suppliers.dart';
 import 'workshop_payroll.dart';
 import 'view_payroll_screen.dart';
+import 'screens/NotificationsScreen.dart';
+import 'services/notification_service.dart';
 
 class WorkshopDashboard extends StatefulWidget {
   const WorkshopDashboard({Key? key}) : super(key: key);
@@ -23,15 +25,18 @@ class WorkshopDashboard extends StatefulWidget {
 class _WorkshopDashboardState extends State<WorkshopDashboard> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GigService _gigService = GigService();
+  final NotificationService _notificationService = NotificationService();
   String _userName = '';
   String _userEmail = '';
   bool _isScheduleExpanded = false;
   bool _isInventoryExpanded = false;
   bool _isPayrollExpanded = false;
+  User? _currentUser;
 
   @override
   void initState() {
     super.initState();
+    _currentUser = _auth.currentUser;
     _loadUserData();
   }
 
@@ -111,6 +116,66 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
       appBar: AppBar(
         title: const Text('Workshop Dashboard'),
         actions: [
+          StreamBuilder<QuerySnapshot>(
+            stream: _notificationService.getNotificationsForUser(_currentUser!.uid),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return IconButton(
+                  icon: const Icon(Icons.notifications_none),
+                  onPressed: () {},
+                );
+              }
+              if (snapshot.hasError) {
+                print('Error fetching notifications: ${snapshot.error}');
+                return IconButton(
+                  icon: const Icon(Icons.notifications_off),
+                  onPressed: () {},
+                );
+              }
+
+              final unreadCount = snapshot.data?.docs.where((doc) => doc['isRead'] == false).length ?? 0;
+
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 11,
+                      top: 11,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 14,
+                          minHeight: 14,
+                        ),
+                        child: Text(
+                          '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _showLogoutConfirmation, // Call confirmation dialog
@@ -236,12 +301,24 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
                   title: const Text('Manage Gig Slots'),
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ManageGigSlots(gigService: _gigService),
-                      ),
-                    );
+                    if (_auth.currentUser != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ManageGigSlots(
+                            gigService: _gigService,
+                            ownerId: _auth.currentUser!.uid,
+                          ),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('You must be logged in to manage gig slots'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   },
                 ),
                 ListTile(

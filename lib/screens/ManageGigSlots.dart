@@ -4,17 +4,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'AddGigSlot.dart'; // Import the AddGigSlot page
 import 'EditGigSlot.dart'; // Import the EditGigSlot page
+import '../services/notification_service.dart'; // Import NotificationService
 
 class ManageGigSlots extends StatefulWidget {
   final GigService gigService;
+  final String ownerId;
 
-  const ManageGigSlots({Key? key, required this.gigService}) : super(key: key);
+  const ManageGigSlots({
+    Key? key, 
+    required this.gigService,
+    required this.ownerId,
+  }) : super(key: key);
 
   @override
   State<ManageGigSlots> createState() => _ManageGigSlotsState();
 }
 
 class _ManageGigSlotsState extends State<ManageGigSlots> {
+  final NotificationService _notificationService = NotificationService(); // Instantiate NotificationService
+
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -26,6 +34,17 @@ class _ManageGigSlotsState extends State<ManageGigSlots> {
 
   Future<void> _deleteGigSlot(String gigId) async {
     String confirmationContent = 'Are you sure you want to delete this slot?';
+
+    // Fetch gig details before deletion for notification purposes
+    final DocumentSnapshot gigDoc = await widget.gigService.getGigById(gigId);
+    if (!gigDoc.exists) {
+      _showSnackBar('Gig slot not found.', isError: true);
+      return;
+    }
+    final Map<String, dynamic> gigData = gigDoc.data() as Map<String, dynamic>;
+    final String gigTitle = gigData['title'] ?? 'Unknown Gig';
+    final Timestamp gigDate = gigData['date'] as Timestamp;
+    final String formattedDate = DateFormat('MMM dd, yyyy').format(gigDate.toDate());
 
     final bool? confirmDelete = await showDialog<bool>(
       context: context,
@@ -48,8 +67,35 @@ class _ManageGigSlotsState extends State<ManageGigSlots> {
 
     if (confirmDelete == true) {
       try {
-        await widget.gigService.deleteGig(gigId);
-        _showSnackBar('Gig slot deleted successfully!');
+        final result = await widget.gigService.deleteGigSlot(gigId);
+        if (result['success']) {
+          // Send notification to all foremen who applied for this gig
+          final QuerySnapshot applicationsSnapshot = await FirebaseFirestore.instance
+              .collection('gigApplications')
+              .where('gigId', isEqualTo: gigId)
+              .get();
+
+          print('Attempting to send gig deleted notification to relevant foremen.');
+          for (var appDoc in applicationsSnapshot.docs) {
+            final String foremanId = appDoc['foremanId'];
+            print('Sending gig deleted notification to foreman: $foremanId');
+            await _notificationService.addNotification(
+              type: 'gig_update',
+              recipientId: foremanId,
+              senderId: widget.ownerId,
+              gigId: gigId,
+              message: 'The gig slot "$gigTitle" for $formattedDate has been deleted by the workshop owner.',
+              action: 'deleted',
+              gigTitle: gigTitle,
+              gigDate: gigDate,
+            );
+          }
+          print('Gig deleted notifications sent successfully (if no error thrown).');
+
+          _showSnackBar('Gig slot deleted successfully!');
+        } else {
+          _showSnackBar(result['message'], isError: true);
+        }
       } catch (e) {
         _showSnackBar('Failed to delete gig slot: $e', isError: true);
       }
@@ -137,7 +183,7 @@ class _ManageGigSlotsState extends State<ManageGigSlots> {
                                   const SizedBox(height: 4),
                                   Text(formattedDate, style: const TextStyle(fontSize: 14)),
                                   Text(description, style: const TextStyle(fontSize: 14)),
-                                  Text('$foremenNeeded Foremen', style: const TextStyle(fontSize: 14)),
+                                  Text('Foremen: ${(gig['foremenAssigned'] as num?)?.toInt() ?? 0} / $foremenNeeded', style: const TextStyle(fontSize: 14)),
                                   Text('RM ${remuneration.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14)),
                                 ],
                               ),
@@ -196,7 +242,10 @@ class _ManageGigSlotsState extends State<ManageGigSlots> {
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => AddGigSlot(gigService: widget.gigService),
+                          builder: (context) => AddGigSlot(
+                            gigService: widget.gigService,
+                            ownerId: widget.ownerId,
+                          ),
                         ),
                       );
                       if (result == true) {

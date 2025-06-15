@@ -5,6 +5,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'view_payroll_foreman.dart';
 import 'add_rating_foreman.dart';
 import 'view_rating_foreman.dart';
+import 'package:workshopgigapp/services/gig_service.dart';
+import 'package:workshopgigapp/controllers/gig_controller.dart';
+import 'package:workshopgigapp/screens/GigApplicationInterface.dart';
+import 'package:workshopgigapp/screens/AppliedGigList.dart';
+import 'package:workshopgigapp/screens/NotificationsScreen.dart';
+import 'package:workshopgigapp/services/notification_service.dart';
 
 class ForemanDashboard extends StatefulWidget {
   const ForemanDashboard({Key? key}) : super(key: key);
@@ -15,12 +21,19 @@ class ForemanDashboard extends StatefulWidget {
 
 class _ForemanDashboardState extends State<ForemanDashboard> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GigService _gigService = GigService();
+  late final GigController _gigController;
+  final NotificationService _notificationService = NotificationService();
+
   String _userName = '';
   String _userEmail = '';
+  User? _currentUser;
 
   @override
   void initState() {
     super.initState();
+    _gigController = GigController(_gigService);
+    _currentUser = _auth.currentUser;
     _loadUserData();
   }
 
@@ -103,10 +116,77 @@ class _ForemanDashboardState extends State<ForemanDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    if (_currentUser == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Foreman Dashboard')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Foreman Dashboard'),
         actions: [
+          StreamBuilder<QuerySnapshot>(
+            stream: _notificationService.getNotificationsForUser(_currentUser!.uid),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return IconButton(
+                  icon: const Icon(Icons.notifications_none),
+                  onPressed: () {},
+                );
+              }
+              if (snapshot.hasError) {
+                print('Error fetching notifications: ${snapshot.error}');
+                return IconButton(
+                  icon: const Icon(Icons.notifications_off),
+                  onPressed: () {},
+                );
+              }
+
+              final unreadCount = snapshot.data?.docs.where((doc) => doc['isRead'] == false).length ?? 0;
+
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 11,
+                      top: 11,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 14,
+                          minHeight: 14,
+                        ),
+                        child: Text(
+                          '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => _handleLogout(context),
@@ -169,6 +249,33 @@ class _ForemanDashboardState extends State<ForemanDashboard> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const ViewPayrollForeman()),
+                );
+              },
+            ),
+            
+            // Gig Application Section
+            const Divider(),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Text('Gig Application', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.work_history),
+              title: const Text('Gig Application'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const GigApplicationInterface()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.list_alt),
+              title: const Text('Applied Gigs'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AppliedGigList()),
                 );
               },
             ),

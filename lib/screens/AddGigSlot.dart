@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../services/gig_service.dart';
+import '../models/gig_model.dart';
 import 'package:flutter/services.dart';
+import '../services/notification_service.dart';
 
 class AddGigSlot extends StatefulWidget {
   final GigService gigService;
+  final String ownerId;
 
-  const AddGigSlot({Key? key, required this.gigService}) : super(key: key);
+  const AddGigSlot({
+    Key? key, 
+    required this.gigService,
+    required this.ownerId,
+  }) : super(key: key);
 
   @override
   State<AddGigSlot> createState() => _AddGigSlotState();
@@ -24,6 +31,7 @@ class _AddGigSlotState extends State<AddGigSlot> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedStartTime;
   TimeOfDay? _selectedEndTime;
+  final NotificationService _notificationService = NotificationService();
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -67,35 +75,48 @@ class _AddGigSlotState extends State<AddGigSlot> {
   }
 
   Future<void> _addGig() async {
+    print('Starting _addGig method');
     if (_formKey.currentState!.validate()) {
+      print('Form validation passed');
       if (_selectedDate == null) {
+        print('Date is null');
         _showSnackBar('Please select a date', isError: true);
         return;
       }
       if (_selectedStartTime == null) {
+        print('Start time is null');
         _showSnackBar('Please select a start time', isError: true);
         return;
       }
       if (_selectedEndTime == null) {
+        print('End time is null');
         _showSnackBar('Please select an end time', isError: true);
         return;
       }
 
+      print('Checking for redundancy');
       // Check for redundancy (E1)
-      bool exists = await widget.gigService.checkGigSlotRedundancy(
-        _titleController.text,
-        _locationController.text,
-        _selectedDate!,
-        _selectedStartTime!,
-        _selectedEndTime!,
+      final redundancyResult = await widget.gigService.checkGigSlotRedundancy(
+        GigModel(
+          title: _titleController.text,
+          description: _descriptionController.text,
+          location: _locationController.text,
+          date: _selectedDate!,
+          startTime: DateFormat('HH:mm').format(DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedStartTime!.hour, _selectedStartTime!.minute)),
+          endTime: DateFormat('HH:mm').format(DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedEndTime!.hour, _selectedEndTime!.minute)),
+          remuneration: double.parse(_remunerationController.text),
+          foremenNeeded: int.parse(_foremenNeededController.text),
+          ownerId: widget.ownerId,
+        ),
       );
 
-      if (exists) {
+      if (!redundancyResult['success']) {
+        print('Redundancy check failed - slot exists');
         await showDialog(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Slot Already Exists'),
-            content: const Text('A gig slot with the same job description already exists at this location, date and time. Try again.'),
+            content: Text(redundancyResult['message']),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -107,8 +128,10 @@ class _AddGigSlotState extends State<AddGigSlot> {
         return;
       }
 
+      print('Showing confirmation dialog');
       final bool? confirmProceed = await showDialog<bool>(
         context: context,
+        barrierDismissible: false,  // Prevent dismissing by tapping outside
         builder: (context) => AlertDialog(
           title: const Text('Confirm Add Gig Slot'),
           content: const Text('Once added, the foreman count and gig location cannot be changed. Do you want to proceed?'),
@@ -125,8 +148,10 @@ class _AddGigSlotState extends State<AddGigSlot> {
         ),
       );
 
+      print('Confirmation dialog result: $confirmProceed');
       if (confirmProceed == true) {
         try {
+          print('Creating gig data');
           final gigData = {
             'title': _titleController.text,
             'description': _descriptionController.text,
@@ -137,16 +162,44 @@ class _AddGigSlotState extends State<AddGigSlot> {
             'remuneration': double.parse(_remunerationController.text),
             'location': _locationController.text,
             'createdAt': FieldValue.serverTimestamp(),
+            'ownerId': widget.ownerId,
+            'foremenAssigned': 0,
           };
+          print('Saving gig data');
           await widget.gigService.createGig(gigData);
+
+          // Send notification to all foremen
+          final QuerySnapshot foremenSnapshot = await FirebaseFirestore.instance.collection('foremen').get();
+          final String formattedDate = DateFormat('MMM dd').format(_selectedDate!);
+
+          print('Attempting to send gig added notification to all foremen.');
+          for (var foremanDoc in foremenSnapshot.docs) {
+            final String foremanId = foremanDoc.id;
+            print('Sending gig added notification to foreman: $foremanId');
+            await _notificationService.addNotification(
+              type: 'gig_update',
+              recipientId: foremanId,
+              senderId: widget.ownerId,
+              gigId: gigData['id'] as String?,
+              message: 'A new gig slot has been added for $formattedDate at ${gigData['location']}.',
+              action: 'added',
+              gigTitle: gigData['title'] as String?,
+              gigDate: Timestamp.fromDate(_selectedDate!),
+            );
+          }
+          print('Gig added notifications sent successfully (if no error thrown).');
+
           _showSnackBar('Gig slot added successfully!');
           if (context.mounted) {
             Navigator.pop(context, true);
           }
         } catch (e) {
+          print('Error creating gig: $e');
           _showSnackBar('Failed to add gig slot: $e', isError: true);
         }
       }
+    } else {
+      print('Form validation failed');
     }
   }
 
