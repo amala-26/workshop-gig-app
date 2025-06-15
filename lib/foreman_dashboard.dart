@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'view_payroll_foreman.dart';
 import 'add_rating_foreman.dart';
 import 'view_rating_foreman.dart';
+import 'manage_rating_foreman.dart';
 
 class ForemanDashboard extends StatelessWidget {
   const ForemanDashboard({Key? key}) : super(key: key);
@@ -124,7 +125,7 @@ class ForemanDashboard extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const AddRatingForeman()),
+                      MaterialPageRoute(builder: (context) => const ManageRatingForeman()),
                     );
                   },
                 ),
