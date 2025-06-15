@@ -10,6 +10,7 @@ import 'add_inventory_page.dart';
 import 'request_inventory_page.dart';
 import 'request_status_page.dart';
 import 'workshop_payroll.dart';
+import 'view_payroll_screen.dart';
 
 class WorkshopDashboard extends StatefulWidget {
   const WorkshopDashboard({Key? key}) : super(key: key);
@@ -57,7 +58,7 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
           .doc(user.uid)
           .get();
       if (doc.exists && mounted) {
-        Navigator.pop(context); // Close drawer
+        Navigator.pop(context);
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -253,7 +254,7 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const WorkshopPayroll(),
+                        builder: (context) => const ViewPayrollScreen(),
                       ),
                     );
                   },
@@ -263,7 +264,12 @@ class _WorkshopDashboardState extends State<WorkshopDashboard> {
                   title: const Text('Add Payroll Record'),
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.pushNamed(context, '/add-payroll');
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WorkshopPayroll(),
+                      ),
+                    );
                   },
                 ),
               ],
