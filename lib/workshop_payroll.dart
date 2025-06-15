@@ -83,25 +83,46 @@ class _WorkshopPayrollState extends State<WorkshopPayroll> {
       try {
         final user = _auth.currentUser;
         if (user != null) {
-          await _firestore.collection('payroll').add({
-            'Foreman_Name': _recipient,
-            'Bank_Name': _selectedBank,
-            'Account_Number': _accountNumber,
-            'Payment_Amount': _amount,
-            'Payment_Date': _paymentDate ?? DateTime.now(),
-            'Payment_Reference': _reference,
-            'Payment_Status': 'Paid',
-            'Created_By': user.uid,
-            'Created_At': FieldValue.serverTimestamp(),
-          });
+          final foremanQuery = await _firestore.collection('foremen')
+              .where('name', isEqualTo: _recipient)
+              .limit(1)
+              .get();
 
-          setState(() {
-            _paymentSuccess = true;
-          });
+          if (foremanQuery.docs.isNotEmpty) {
+            final foremanUid = foremanQuery.docs.first.id;
+            
+            await _firestore.collection('payroll').add({
+              'Foreman_Name': _recipient,
+              'Foreman_Uid': foremanUid,
+              'Bank_Name': _selectedBank,
+              'Account_Number': _accountNumber,
+              'Payment_Amount': _amount,
+              'Payment_Date': _paymentDate ?? DateTime.now(),
+              'Payment_Reference': _reference,
+              'Payment_Status': 'Paid',
+              'Created_By': user.uid,
+              'Created_At': FieldValue.serverTimestamp(),
+              'Role': 'foreman',
+            });
+
+            setState(() {
+              _paymentSuccess = true;
+            });
+            // Navigate to payroll records after short delay
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                Navigator.pushReplacementNamed(context, '/view-payroll');
+              }
+            });
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Foreman not found. Please check the recipient name.')),
+            );
+          }
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to save payment. Please try again.')),
+          SnackBar(content: Text('Failed to save payment: ${e.toString()}')),
         );
       } finally {
         setState(() {
@@ -207,61 +228,33 @@ class _WorkshopPayrollState extends State<WorkshopPayroll> {
   }
 
   Widget _buildSuccessView() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Workshop Co',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 20),
-        const Text(
-          'Payment Details',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 20),
-        const Divider(thickness: 2),
-        const SizedBox(height: 30),
-        Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.check_circle, color: Colors.green, size: 30),
-                SizedBox(width: 10),
-                Text(
-                  'Payment Successful',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-              ],
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 40),
+          const CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.black,
+            child: Icon(Icons.check, color: Colors.white, size: 32),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Payment Successful',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Your money has been\npaid to the worker',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, height: 1.5),
-            ),
-            const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _resetForm,
-                child: const Text('Submit Another Payment'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () {
-                  Navigator.pushReplacementNamed(context, '/view-payroll');
-                },
-                child: const Text('View All Payments'),
-              ),
-            ),
-          ],
-        ),
-      ],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Your money has been\npaid to the worker',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: Colors.black),
+          ),
+        ],
+      ),
     );
   }
 
