@@ -51,7 +51,7 @@ class _WorkshopPayrollState extends State<WorkshopPayroll> {
                 Navigator.pop(context);
                 _submitPayment(context);
               },
-              child: const Text('Submit Payment'),
+              child: const Text('Yes'),
             ),
           ],
         );
@@ -323,17 +323,23 @@ class _WorkshopPayrollState extends State<WorkshopPayroll> {
                     ),
                     const SizedBox(height: 20),
                     
-                    TextFormField(
-                      decoration: const InputDecoration(
-                        labelText: 'Payment Date',
-                        border: OutlineInputBorder(),
-                      ),
-                      controller: TextEditingController(text: _paymentDate),
-                      readOnly: true,
+                    InkWell(
                       onTap: () => _selectDate(context),
-                      validator: (value) => value?.isEmpty ?? true 
-                          ? 'Please select payment date' 
-                          : null,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Payment Date',
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          _paymentDate ?? 'Select date',
+                          style: TextStyle(
+                            color: _paymentDate != null 
+                                ? Colors.black 
+                                : Colors.grey[600],
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 20),
                     
