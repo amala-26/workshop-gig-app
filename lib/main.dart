@@ -12,6 +12,7 @@ import 'request_inventory_page.dart';
 import 'request_status_page.dart';
 import 'edit_inventory_page.dart';
 import 'workshop_payroll.dart';
+import 'view_payroll_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,9 +80,16 @@ class MyApp extends StatelessWidget {
           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
             return EditInventoryPage(itemId: args['itemId'], itemData: args['itemData']);
           },
+
+        // Payroll management routes
+        '/add-payroll': (context) => const WorkshopPayroll(),
+        '/view-payroll': (context) => const ViewPayrollScreen(),
       },
-      // home: const LoginPage(),
+
+      debugShowCheckedModeBanner: false,
     );
+
+    
   }
 }
 
