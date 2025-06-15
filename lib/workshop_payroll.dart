@@ -12,10 +12,11 @@ class _WorkshopPayrollState extends State<WorkshopPayroll> {
   String? _selectedBank;
   String? _recipient;
   String? _accountNumber;
-  double _amount = 50.00;
+  double _amount = 0.00;
   String? _paymentDate;
   String? _reference;
   bool _showError = false;
+  bool _paymentSuccess = false;
 
   final List<String> _banks = ['Select...', 'Bank Islam', 'Maybank', 'RHB Bank'];
 
@@ -67,11 +68,9 @@ class _WorkshopPayrollState extends State<WorkshopPayroll> {
         return;
       }
 
-      // Here you would normally process the payment
-      // For now, we'll just show a success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment submitted successfully')),
-      );
+      setState(() {
+        _paymentSuccess = true;
+      });
     } else {
       setState(() {
         _showError = true;
@@ -111,7 +110,7 @@ class _WorkshopPayrollState extends State<WorkshopPayroll> {
             ElevatedButton(
               onPressed: () {
                 final newAmount = double.tryParse(amountController.text);
-                if (newAmount != null && newAmount > 0) {
+                if (newAmount != null && newAmount >= 0) {
                   setState(() {
                     _amount = newAmount;
                   });
@@ -126,6 +125,20 @@ class _WorkshopPayrollState extends State<WorkshopPayroll> {
     );
   }
 
+  void _resetForm() {
+    setState(() {
+      _selectedBank = null;
+      _recipient = null;
+      _accountNumber = null;
+      _amount = 0.00;
+      _paymentDate = null;
+      _reference = null;
+      _showError = false;
+      _paymentSuccess = false;
+      _formKey.currentState?.reset();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,156 +151,219 @@ class _WorkshopPayrollState extends State<WorkshopPayroll> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Workshop Co',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Payment Details',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 20),
-              
-              if (_showError)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
-                  child: Text(
-                    'Invalid Payment Details\nPlease Check and Try again.',
+        child: _paymentSuccess
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Workshop Co',
                     style: TextStyle(
-                      color: Colors.red[700],
-                      fontSize: 16,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-              
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Choose Bank',
-                  border: OutlineInputBorder(),
-                ),
-                value: _selectedBank,
-                items: _banks.map((bank) => DropdownMenuItem(
-                  value: bank,
-                  child: Text(bank),
-                )).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedBank = value;
-                    _showError = false;
-                  });
-                },
-                validator: (value) => value == null || value == 'Select...' 
-                    ? 'Please select a bank' 
-                    : null,
-              ),
-              const SizedBox(height: 20),
-              
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: 'To',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _recipient = value;
-                    _showError = false;
-                  });
-                },
-                validator: (value) => value?.isEmpty ?? true 
-                    ? 'Please enter recipient name' 
-                    : null,
-              ),
-              const SizedBox(height: 20),
-              
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: 'Account Number',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  setState(() {
-                    _accountNumber = value;
-                    _showError = false;
-                  });
-                },
-                validator: (value) => value?.isEmpty ?? true 
-                    ? 'Please enter account number' 
-                    : null,
-              ),
-              const SizedBox(height: 20),
-              
-              InkWell(
-                onTap: () => _showAmountModificationDialog(context),
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: 'Amount (MYR)',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Payment Details',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const SizedBox(height: 20),
+                  const Divider(thickness: 2),
+                  const SizedBox(height: 30),
+                  Column(
                     children: [
-                      Text('MYR ${_amount.toStringAsFixed(2)}'),
-                      const Icon(Icons.edit, size: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 30,
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'Payment Successful',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Your money has been\npaid to the worker',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _resetForm,
+                          child: const Text('Submit Another Payment'),
+                        ),
+                      ),
                     ],
                   ),
+                ],
+              )
+            : Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Workshop Co',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Payment Details',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    if (_showError)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: Text(
+                          'Invalid Payment Details\nPlease Check and Try again.',
+                          style: TextStyle(
+                            color: Colors.red[700],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Choose Bank',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: _selectedBank,
+                      items: _banks.map((bank) => DropdownMenuItem(
+                        value: bank,
+                        child: Text(bank),
+                      )).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedBank = value;
+                          _showError = false;
+                        });
+                      },
+                      validator: (value) => value == null || value == 'Select...' 
+                          ? 'Please select a bank' 
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'To',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _recipient = value;
+                          _showError = false;
+                        });
+                      },
+                      validator: (value) => value?.isEmpty ?? true 
+                          ? 'Please enter recipient name' 
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Account Number',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        setState(() {
+                          _accountNumber = value;
+                          _showError = false;
+                        });
+                      },
+                      validator: (value) => value?.isEmpty ?? true 
+                          ? 'Please enter account number' 
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    InkWell(
+                      onTap: () => _showAmountModificationDialog(context),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Amount (MYR)',
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('MYR ${_amount.toStringAsFixed(2)}'),
+                            const Icon(Icons.edit, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Payment Date',
+                        border: OutlineInputBorder(),
+                      ),
+                      controller: TextEditingController(text: _paymentDate),
+                      readOnly: true,
+                      onTap: () => _selectDate(context),
+                      validator: (value) => value?.isEmpty ?? true 
+                          ? 'Please select payment date' 
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Reference',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _reference = value;
+                          _showError = false;
+                        });
+                      },
+                      validator: (value) => value?.isEmpty ?? true 
+                          ? 'Please enter reference' 
+                          : null,
+                    ),
+                    const SizedBox(height: 30),
+                    
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => _showConfirmationDialog(context),
+                        child: const Text('Submit Payment'),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: 'Payment Date',
-                  border: OutlineInputBorder(),
-                ),
-                controller: TextEditingController(text: _paymentDate),
-                readOnly: true,
-                onTap: () => _selectDate(context),
-                validator: (value) => value?.isEmpty ?? true 
-                    ? 'Please select payment date' 
-                    : null,
-              ),
-              const SizedBox(height: 20),
-              
-              TextFormField(
-                decoration: const InputDecoration(
-                  labelText: 'Reference',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _reference = value;
-                    _showError = false;
-                  });
-                },
-                validator: (value) => value?.isEmpty ?? true 
-                    ? 'Please enter reference' 
-                    : null,
-              ),
-              const SizedBox(height: 30),
-              
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => _showConfirmationDialog(context),
-                  child: const Text('Submit Payment'),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
