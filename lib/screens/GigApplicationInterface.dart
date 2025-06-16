@@ -4,6 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/notification_service.dart'; // Import NotificationService
 
+/// A widget that displays available gigs and allows foremen to apply for them.
+/// Includes filtering capabilities for location, date, time, and job type.
+/// Handles application submission with validation for overlapping schedules and capacity.
 class GigApplicationInterface extends StatefulWidget {
   const GigApplicationInterface({Key? key}) : super(key: key);
 
@@ -28,6 +31,7 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     // _displaySlots(); // Removed as StreamBuilder will handle initial load and updates
   }
 
+  /// Retrieves the current authenticated user
   void _getCurrentUser() {
     _currentUser = _auth.currentUser;
   }
@@ -37,6 +41,7 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     super.dispose();
   }
 
+  /// Resets all active filters to their default state
   void _resetFilters() {
     setState(() {
       _selectedLocation = null;
@@ -49,10 +54,14 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
 
   // _displaySlots method will be removed/refactored into StreamBuilder
 
+  /// Initiates the application process for a selected gig slot
+  /// @param gigID The ID of the gig to apply for
   void _selectSlot(String gigID) {
     _showConfirmApplicationDialog(gigID);
   }
 
+  /// Shows a confirmation dialog before submitting the application
+  /// @param gigID The ID of the gig to apply for
   void _showConfirmApplicationDialog(String gigID) {
     showDialog(
       context: context,
@@ -80,6 +89,8 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     );
   }
 
+  /// Handles the gig application process with validation and database updates
+  /// @param gigId The ID of the gig to apply for
   Future<void> _applyForGig(String gigId) async {
     if (_currentUser == null) {
       _showSnackBar('You must be logged in to apply for a gig.', isError: true);
@@ -234,6 +245,7 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     }
   }
 
+  /// Shows a success dialog after application submission
   void _showApplicationSubmittedDialog() {
     showDialog(
       context: context,
@@ -256,6 +268,7 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     );
   }
 
+  /// Shows a dialog when the selected gig slot is no longer available
   void _showSlotNotAvailableDialog() {
     showDialog(
       context: context,
@@ -278,6 +291,9 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     );
   }
 
+  /// Displays a snackbar message with optional error styling
+  /// @param message The message to display
+  /// @param isError If true, the snackbar will be styled as an error (red background)
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -287,6 +303,9 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     );
   }
 
+  /// Fetches workshop names from Firestore for a list of owner IDs
+  /// @param ownerIds List of owner IDs to fetch workshop names for
+  /// @return Map of owner IDs to their workshop names
   Future<Map<String, String>> _fetchWorkshopNames(List<String> ownerIds) async {
     Map<String, String> workshopNames = {};
     if (ownerIds.isEmpty) return workshopNames;
@@ -587,6 +606,10 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     );
   }
 
+  /// Builds a filter chip widget for the filter bar
+  /// @param label The label text for the filter chip
+  /// @param icon The icon to display on the filter chip
+  /// @param onSelected Callback function when the filter is selected/deselected
   Widget _buildFilterChip(String label, IconData icon, Function(bool) onSelected) {
     bool isSelected = false;
     if (label == 'Location') {
@@ -612,6 +635,8 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     );
   }
 
+  /// Shows a dialog to select a location from available gig locations
+  /// @return The selected location or null if cancelled
   Future<String?> _showLocationPickerDialog() async {
     final QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('gigs').get();
     final List<String> locations = snapshot.docs
@@ -643,6 +668,8 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     );
   }
 
+  /// Shows a dialog to select a job type from available gig titles
+  /// @return The selected job type or null if cancelled
   Future<String?> _showJobTypePickerDialog() async {
     final QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('gigs').get();
     final List<String> jobTypes = snapshot.docs
@@ -674,6 +701,9 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     );
   }
 
+  /// Builds a row of information with an icon and text
+  /// @param icon The icon to display
+  /// @param text The text to display
   Widget _buildInfoRow(IconData icon, String text) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),

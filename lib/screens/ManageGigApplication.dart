@@ -5,6 +5,8 @@ import '../services/gig_service.dart';
 import '../services/notification_service.dart';
 import 'package:intl/intl.dart';
 
+/// A widget that allows workshop owners to manage applications for their gigs.
+/// This includes viewing applications and approving/rejecting them.
 class ManageGigApplication extends StatefulWidget {
   final GigService gigService;
 
@@ -26,6 +28,7 @@ class _ManageGigApplicationState extends State<ManageGigApplication> {
     _getCurrentUser();
   }
 
+  /// Retrieves the current authenticated user and sets the owner ID
   void _getCurrentUser() {
     _currentUser = _auth.currentUser;
     if (_currentUser != null) {
@@ -34,6 +37,9 @@ class _ManageGigApplicationState extends State<ManageGigApplication> {
     }
   }
 
+  /// Fetches foreman names from Firestore for a list of foreman IDs
+  /// @param foremanIds List of foreman IDs to fetch names for
+  /// @return Map of foreman IDs to their names
   Future<Map<String, String>> _fetchForemanNames(List<String> foremanIds) async {
     Map<String, String> foremanNames = {};
     if (foremanIds.isEmpty) return foremanNames;
@@ -56,6 +62,9 @@ class _ManageGigApplicationState extends State<ManageGigApplication> {
     return foremanNames;
   }
 
+  /// Fetches gig details from Firestore for a list of gig IDs
+  /// @param gigIds List of gig IDs to fetch details for
+  /// @return Map of gig IDs to their details
   Future<Map<String, Map<String, dynamic>>> _fetchGigDetails(List<String> gigIds) async {
     Map<String, Map<String, dynamic>> gigDetails = {};
     if (gigIds.isEmpty) return gigDetails;
@@ -77,6 +86,11 @@ class _ManageGigApplicationState extends State<ManageGigApplication> {
     return gigDetails;
   }
 
+  /// Updates the status of a gig application and handles related notifications
+  /// @param applicationId ID of the application to update
+  /// @param status New status to set (Approved/Rejected/Cancelled)
+  /// @param foremanId ID of the foreman who applied
+  /// @param gigId ID of the gig being applied for
   Future<void> _updateApplicationStatus(String applicationId, String status, String foremanId, String gigId) async {
     try {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
@@ -114,6 +128,7 @@ class _ManageGigApplicationState extends State<ManageGigApplication> {
         int newForemenAssigned = currentForemenAssigned;
         print('Before update: Gig ID: $gigId, Status: $status, currentForemenAssigned: $currentForemenAssigned');
 
+        // Update foremen count based on status change
         if (status == 'Approved') {
           if (oldStatus != 'Approved') {
             // Only increment if it wasn't already approved
@@ -178,6 +193,7 @@ class _ManageGigApplicationState extends State<ManageGigApplication> {
 
   @override
   Widget build(BuildContext context) {
+    // Show loading indicator if owner ID is not yet available
     if (_currentOwnerId == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Manage Gig Applications')),
@@ -267,6 +283,7 @@ class _ManageGigApplicationState extends State<ManageGigApplication> {
                           final String gigLocation = gig?['location'] ?? 'Unknown Location';
                           final String gigDate = (gig?['date'] as Timestamp?)?.toDate().toString().split(' ')[0] ?? ''; // Basic date format
 
+                          // Set status color based on application status
                           Color statusColor = Colors.grey;
                           if (status == 'Pending') {
                             statusColor = Colors.orange;

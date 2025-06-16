@@ -6,6 +6,9 @@ import '../models/gig_model.dart';
 import 'package:flutter/services.dart'; // Import for FilteringTextInputFormatter
 import '../services/notification_service.dart'; // Import NotificationService
 
+/// A widget that allows workshop owners to edit existing gig slots.
+/// Provides form fields for updating gig details while maintaining certain restrictions
+/// (e.g., location and foreman count cannot be modified).
 class EditGigSlot extends StatefulWidget {
   // These parameters are still needed because ManageGigSlots passes them
   final GigService gigService;
@@ -39,16 +42,17 @@ class _EditGigSlotState extends State<EditGigSlot> {
   @override
   void initState() {
     super.initState();
+    // Initialize controllers with existing gig data
     _titleController = TextEditingController(text: widget.initialData['title'] ?? '');
     _descriptionController = TextEditingController(text: widget.initialData['description'] ?? '');
     _foremenNeededController = TextEditingController(text: (widget.initialData['foremenNeeded'] ?? 0).toString());
     _remunerationController = TextEditingController(text: (widget.initialData['remuneration'] ?? 0.0).toString());
     _locationController = TextEditingController(text: widget.initialData['location'] ?? '');
 
+    // Parse existing date and time data
     if (widget.initialData['date'] != null) {
       _selectedDate = (widget.initialData['date'] as Timestamp).toDate();
     }
-    // Parse 'HH:mm' strings into TimeOfDay objects
     if (widget.initialData['startTime'] != null) {
       try {
         final parts = (widget.initialData['startTime'] as String).split(':');
@@ -67,6 +71,8 @@ class _EditGigSlotState extends State<EditGigSlot> {
     }
   }
 
+  /// Shows a date picker dialog and updates the selected date
+  /// @param context The build context
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -81,6 +87,9 @@ class _EditGigSlotState extends State<EditGigSlot> {
     }
   }
 
+  /// Shows a time picker dialog and updates either start or end time
+  /// @param context The build context
+  /// @param isStartTime If true, updates start time; otherwise updates end time
   Future<void> _selectTime(BuildContext context, {required bool isStartTime}) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
@@ -99,6 +108,9 @@ class _EditGigSlotState extends State<EditGigSlot> {
     }
   }
 
+  /// Displays a snackbar message with optional error styling
+  /// @param message The message to display
+  /// @param isError If true, the snackbar will be styled as an error (red background)
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -108,8 +120,11 @@ class _EditGigSlotState extends State<EditGigSlot> {
     );
   }
 
+  /// Updates the gig slot with new information and notifies relevant foremen
+  /// Validates form data and required fields before proceeding with the update
   Future<void> _updateGig() async {
     if (_formKey.currentState!.validate()) {
+      // Validate required fields
       if (_selectedDate == null) {
         _showSnackBar('Please select a date', isError: true);
         return;
@@ -124,6 +139,7 @@ class _EditGigSlotState extends State<EditGigSlot> {
       }
 
       try {
+        // Prepare updated gig data
         final gigData = {
           'title': _titleController.text,
           'description': _descriptionController.text,
@@ -135,22 +151,20 @@ class _EditGigSlotState extends State<EditGigSlot> {
         };
         await widget.gigService.updateGigSlot(widget.gigId, gigData);
 
-        // Send notification to relevant foremen
+        // Notify foremen about the update
         final QuerySnapshot applicationsSnapshot = await FirebaseFirestore.instance
             .collection('gigApplications')
             .where('gigId', isEqualTo: widget.gigId)
             .get();
 
-        final String formattedDate = DateFormat('MMM dd').format(_selectedDate!); // Format the date once
+        final String formattedDate = DateFormat('MMM dd').format(_selectedDate!);
 
-        print('Attempting to send gig edited notification to relevant foremen.');
         for (var appDoc in applicationsSnapshot.docs) {
           final String foremanId = appDoc['foremanId'];
-          print('Sending gig edited notification to foreman: $foremanId');
           await _notificationService.addNotification(
             type: 'gig_update',
             recipientId: foremanId,
-            senderId: widget.initialData['ownerId'], // Assuming ownerId is available in initialData
+            senderId: widget.initialData['ownerId'],
             gigId: widget.gigId,
             message: 'The gig slot "${_titleController.text}" for $formattedDate has been edited. Please review the new details.',
             action: 'edited',
@@ -158,7 +172,6 @@ class _EditGigSlotState extends State<EditGigSlot> {
             gigDate: Timestamp.fromDate(_selectedDate!),
           );
         }
-        print('Gig edited notifications sent successfully (if no error thrown).');
 
         _showSnackBar('Gig slot updated successfully!');
         if (context.mounted) {
@@ -172,6 +185,7 @@ class _EditGigSlotState extends State<EditGigSlot> {
 
   @override
   void dispose() {
+    // Clean up controllers
     _titleController.dispose();
     _descriptionController.dispose();
     _foremenNeededController.dispose();
@@ -192,6 +206,7 @@ class _EditGigSlotState extends State<EditGigSlot> {
           key: _formKey,
           child: Column(
             children: [
+              // Form fields for editing gig details
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(labelText: 'Slot Name', hintText: 'Diesel Engine Diagnostics'),
@@ -202,6 +217,7 @@ class _EditGigSlotState extends State<EditGigSlot> {
                 decoration: const InputDecoration(labelText: 'Job Description', hintText: 'Description_Blablabla'),
                 validator: (value) => value!.isEmpty ? 'Please enter a job description' : null,
               ),
+              // Date selection
               ListTile(
                 title: Text(
                   _selectedDate == null
@@ -212,6 +228,7 @@ class _EditGigSlotState extends State<EditGigSlot> {
                 trailing: const Icon(Icons.calendar_today),
                 onTap: () => _selectDate(context),
               ),
+              // Time selection
               ListTile(
                 title: Text(
                   _selectedStartTime == null || _selectedEndTime == null
@@ -221,16 +238,14 @@ class _EditGigSlotState extends State<EditGigSlot> {
                 ),
                 trailing: const Icon(Icons.timer),
                 onTap: () async {
-                  // Allow selecting start time first
                   final TimeOfDay? pickedStartTime = await showTimePicker(
                     context: context,
                     initialTime: _selectedStartTime ?? TimeOfDay.now(),
                   );
                   if (pickedStartTime != null) {
-                    // Then allow selecting end time
                     final TimeOfDay? pickedEndTime = await showTimePicker(
                       context: context,
-                      initialTime: _selectedEndTime ?? pickedStartTime, // Suggest end time after start
+                      initialTime: _selectedEndTime ?? pickedStartTime,
                     );
                     if (pickedEndTime != null) {
                       setState(() {
@@ -241,19 +256,20 @@ class _EditGigSlotState extends State<EditGigSlot> {
                   }
                 },
               ),
+              // Read-only fields
               TextFormField(
                 controller: _locationController,
                 decoration: const InputDecoration(labelText: 'Location'),
-                enabled: false, // Location cannot be edited
-                style: const TextStyle(color: Color(0xFF8D8D8D)), // Indicate it's read-only and match design
+                enabled: false,
+                style: const TextStyle(color: Color(0xFF8D8D8D)),
                 validator: (value) => value!.isEmpty ? 'Please enter a location' : null,
               ),
               TextFormField(
                 controller: _foremenNeededController,
                 decoration: const InputDecoration(labelText: 'Number of Foremen'),
                 keyboardType: TextInputType.number,
-                enabled: false, // Foreman count cannot be edited
-                style: const TextStyle(color: Color(0xFF8D8D8D)), // Indicate it's read-only and match design
+                enabled: false,
+                style: const TextStyle(color: Color(0xFF8D8D8D)),
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
                 ],
@@ -265,6 +281,7 @@ class _EditGigSlotState extends State<EditGigSlot> {
                   return null;
                 },
               ),
+              // Editable fields
               TextFormField(
                 controller: _remunerationController,
                 decoration: const InputDecoration(labelText: 'Salary Details', hintText: 'RM 30'),

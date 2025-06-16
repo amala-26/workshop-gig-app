@@ -6,6 +6,8 @@ import 'AddGigSlot.dart'; // Import the AddGigSlot page
 import 'EditGigSlot.dart'; // Import the EditGigSlot page
 import '../services/notification_service.dart'; // Import NotificationService
 
+/// A widget that allows workshop owners to manage their gig slots.
+/// This includes viewing, adding, editing, and deleting gig slots.
 class ManageGigSlots extends StatefulWidget {
   final GigService gigService;
   final String ownerId;
@@ -21,8 +23,11 @@ class ManageGigSlots extends StatefulWidget {
 }
 
 class _ManageGigSlotsState extends State<ManageGigSlots> {
-  final NotificationService _notificationService = NotificationService(); // Instantiate NotificationService
+  final NotificationService _notificationService = NotificationService();
 
+  /// Displays a snackbar message to the user with optional error styling
+  /// @param message The message to display
+  /// @param isError If true, the snackbar will be styled as an error (red background)
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -32,6 +37,8 @@ class _ManageGigSlotsState extends State<ManageGigSlots> {
     );
   }
 
+  /// Handles the deletion of a gig slot, including confirmation dialog and notifications
+  /// @param gigId The ID of the gig slot to delete
   Future<void> _deleteGigSlot(String gigId) async {
     String confirmationContent = 'Are you sure you want to delete this slot?';
 
@@ -46,6 +53,7 @@ class _ManageGigSlotsState extends State<ManageGigSlots> {
     final Timestamp gigDate = gigData['date'] as Timestamp;
     final String formattedDate = DateFormat('MMM dd, yyyy').format(gigDate.toDate());
 
+    // Show confirmation dialog
     final bool? confirmDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

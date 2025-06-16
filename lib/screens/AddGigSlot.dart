@@ -6,6 +6,9 @@ import '../models/gig_model.dart';
 import 'package:flutter/services.dart';
 import '../services/notification_service.dart';
 
+/// A widget that allows workshop owners to create new gig slots.
+/// Provides form fields for entering gig details and handles validation,
+/// redundancy checking, and notification of foremen about new gigs.
 class AddGigSlot extends StatefulWidget {
   final GigService gigService;
   final String ownerId;
@@ -33,6 +36,8 @@ class _AddGigSlotState extends State<AddGigSlot> {
   TimeOfDay? _selectedEndTime;
   final NotificationService _notificationService = NotificationService();
 
+  /// Shows a date picker dialog and updates the selected date
+  /// @param context The build context
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -47,6 +52,9 @@ class _AddGigSlotState extends State<AddGigSlot> {
     }
   }
 
+  /// Shows a time picker dialog and updates either start or end time
+  /// @param context The build context
+  /// @param isStartTime If true, updates start time; otherwise updates end time
   Future<void> _selectTime(BuildContext context, {required bool isStartTime}) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
@@ -65,6 +73,9 @@ class _AddGigSlotState extends State<AddGigSlot> {
     }
   }
 
+  /// Displays a snackbar message with optional error styling
+  /// @param message The message to display
+  /// @param isError If true, the snackbar will be styled as an error (red background)
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -74,10 +85,13 @@ class _AddGigSlotState extends State<AddGigSlot> {
     );
   }
 
+  /// Handles the creation of a new gig slot
+  /// Validates form data, checks for redundancy, and notifies foremen
   Future<void> _addGig() async {
     print('Starting _addGig method');
     if (_formKey.currentState!.validate()) {
       print('Form validation passed');
+      // Validate required fields
       if (_selectedDate == null) {
         print('Date is null');
         _showSnackBar('Please select a date', isError: true);
@@ -129,6 +143,7 @@ class _AddGigSlotState extends State<AddGigSlot> {
       }
 
       print('Showing confirmation dialog');
+      // Show confirmation dialog about non-editable fields
       final bool? confirmProceed = await showDialog<bool>(
         context: context,
         barrierDismissible: false,  // Prevent dismissing by tapping outside
@@ -152,6 +167,7 @@ class _AddGigSlotState extends State<AddGigSlot> {
       if (confirmProceed == true) {
         try {
           print('Creating gig data');
+          // Prepare gig data for creation
           final gigData = {
             'title': _titleController.text,
             'description': _descriptionController.text,
@@ -168,7 +184,7 @@ class _AddGigSlotState extends State<AddGigSlot> {
           print('Saving gig data');
           await widget.gigService.createGig(gigData);
 
-          // Send notification to all foremen
+          // Notify all foremen about the new gig
           final QuerySnapshot foremenSnapshot = await FirebaseFirestore.instance.collection('foremen').get();
           final String formattedDate = DateFormat('MMM dd').format(_selectedDate!);
 
@@ -205,6 +221,7 @@ class _AddGigSlotState extends State<AddGigSlot> {
 
   @override
   void dispose() {
+    // Clean up controllers
     _titleController.dispose();
     _descriptionController.dispose();
     _foremenNeededController.dispose();
@@ -225,6 +242,7 @@ class _AddGigSlotState extends State<AddGigSlot> {
           key: _formKey,
           child: Column(
             children: [
+              // Basic gig information
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(labelText: 'Slot Name', hintText: 'Enter Slot Name'),
@@ -237,6 +255,7 @@ class _AddGigSlotState extends State<AddGigSlot> {
                 validator: (value) => value!.isEmpty ? 'Please enter a job description' : null,
               ),
               const SizedBox(height: 16.0),
+              // Date and time selection
               ListTile(
                 title: Text(
                   _selectedDate == null
@@ -276,6 +295,7 @@ class _AddGigSlotState extends State<AddGigSlot> {
                 },
               ),
               const SizedBox(height: 16.0),
+              // Location and foreman count
               TextFormField(
                 controller: _locationController,
                 decoration: const InputDecoration(labelText: 'Location', hintText: 'Enter Location'),
@@ -302,6 +322,7 @@ class _AddGigSlotState extends State<AddGigSlot> {
                 style: TextStyle(color: Colors.red, fontSize: 12),
               ),
               const SizedBox(height: 16.0),
+              // Remuneration details
               TextFormField(
                 controller: _remunerationController,
                 decoration: const InputDecoration(labelText: 'Salary Per Hour (RM)', hintText: 'Enter Salary Per Hour'),

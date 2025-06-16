@@ -4,6 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../services/notification_service.dart';
 
+/// A widget that displays a list of notifications for the current user.
+/// Notifications can be of different types (application status, gig updates, new applications)
+/// and are displayed with appropriate icons and colors based on their type and status.
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
 
@@ -28,6 +31,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Show loading indicator if user ID is not yet available
     if (_currentUserId == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Notifications')),
@@ -76,7 +80,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               Color iconColor = Colors.grey;
               String timeAgo = _getTimeAgo(notificationTime);
 
-              // Determine icon based on notification type
+              // Set icon and color based on notification type and status
               if (type == 'application_status') {
                 final String status = data['status'] ?? '';
                 if (status == 'Approved') {
@@ -129,6 +133,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  /// Calculates and returns a human-readable time difference string
+  /// @param dateTime The DateTime to calculate the difference from
+  /// @return A string representing how long ago the time was (e.g., "2 hours ago")
   String _getTimeAgo(DateTime dateTime) {
     final Duration diff = DateTime.now().difference(dateTime);
     if (diff.inDays > 0) {
