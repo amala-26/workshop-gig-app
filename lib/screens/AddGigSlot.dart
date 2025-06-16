@@ -55,6 +55,7 @@ class _AddGigSlotState extends State<AddGigSlot> {
   /// Shows a time picker dialog and updates either start or end time
   /// @param context The build context
   /// @param isStartTime If true, updates start time; otherwise updates end time
+  // ignore: unused_element
   Future<void> _selectTime(BuildContext context, {required bool isStartTime}) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,

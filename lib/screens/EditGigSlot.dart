@@ -1,3 +1,5 @@
+// ignore_for_file: unused_import
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -90,6 +92,7 @@ class _EditGigSlotState extends State<EditGigSlot> {
   /// Shows a time picker dialog and updates either start or end time
   /// @param context The build context
   /// @param isStartTime If true, updates start time; otherwise updates end time
+  // ignore: unused_element
   Future<void> _selectTime(BuildContext context, {required bool isStartTime}) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,

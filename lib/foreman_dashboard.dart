@@ -1,8 +1,11 @@
+// ignore_for_file: unused_field
+
 import 'package:flutter/material.dart';
 import 'foreman_profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'view_payroll_foreman.dart';
+// ignore: unused_import
 import 'add_rating_foreman.dart';
 import 'view_rating_foreman.dart';
 import 'manage_rating_foreman.dart';
