@@ -89,10 +89,22 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     final String foremanId = _currentUser!.uid;
 
     try {
-      // 1. Fetch the gig details to check foremenNeeded and foremenAssigned
+      // 1. Check if the gig exists and is still available
       final DocumentSnapshot gigDoc = await FirebaseFirestore.instance.collection('gigs').doc(gigId).get();
       if (!gigDoc.exists) {
-        _showSlotNotAvailableDialog();
+        _showSnackBar('Gig not found.', isError: true);
+        return;
+      }
+
+      // Functional Requirement: A foreman can apply for a gig only once.
+      final QuerySnapshot existingApplication = await FirebaseFirestore.instance
+          .collection('gigApplications')
+          .where('foremanId', isEqualTo: foremanId)
+          .where('gigId', isEqualTo: gigId)
+          .get();
+
+      if (existingApplication.docs.isNotEmpty) {
+        _showSnackBar('You have already applied for this gig.', isError: true);
         return;
       }
 
@@ -185,10 +197,9 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
           'applicationDate': Timestamp.now(),
         });
 
-        transaction.update(gigRef, {
-          'foremenAssigned': currentForemenAssigned + 1,
-        });
-        print('After application: Gig ID: $gigId, newForemenAssigned: ${currentForemenAssigned + 1}');
+        // Functional Requirement: Foreman count should only update upon workshop owner approval.
+        // Removed the premature increment of foremenAssigned.
+        print('Application submitted for Gig ID: $gigId');
 
         // Get ownerId and foremanName for notification
         final String ownerId = gigDoc['ownerId'];
@@ -276,6 +287,27 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     );
   }
 
+  Future<Map<String, String>> _fetchWorkshopNames(List<String> ownerIds) async {
+    Map<String, String> workshopNames = {};
+    if (ownerIds.isEmpty) return workshopNames;
+
+    final chunks = [];
+    for (var i = 0; i < ownerIds.length; i += 10) {
+      chunks.add(ownerIds.sublist(i, i + 10 > ownerIds.length ? ownerIds.length : i + 10));
+    }
+
+    for (var chunk in chunks) {
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('workshops')
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      for (var doc in snapshot.docs) {
+        workshopNames[doc.id] = doc['workshopName'] ?? 'Unknown Workshop';
+      }
+    }
+    return workshopNames;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_currentUser == null) {
@@ -307,8 +339,8 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: Wrap(
-              spacing: 8.0, // horizontal spacing between chips
-              runSpacing: 4.0, // vertical spacing between lines of chips
+              spacing: 8.0,
+              runSpacing: 4.0,
               children: [
                 _buildFilterChip('Location', Icons.location_on, (isSelected) async {
                   print('Location filter clicked. isSelected: $isSelected');
@@ -453,6 +485,7 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
                     String title = gig['title'] ?? 'N/A';
                     double remuneration = (gig['remuneration'] as num?)?.toDouble() ?? 0.0;
                     String location = gig['location'] ?? 'N/A';
+                    String ownerId = gig['ownerId'] ?? '';
 
                     Timestamp dateTimestamp = gig['date'] as Timestamp? ?? Timestamp.now();
                     DateTime gigDate = dateTimestamp.toDate();
@@ -472,51 +505,77 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
                     int foremenNeeded = (gig['foremenNeeded'] as num?)?.toInt() ?? 0;
                     int foremenAssigned = (gig['foremenAssigned'] as num?)?.toInt() ?? 0;
 
-                    return Card(
-                      margin: const EdgeInsets.all(8.0),
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: InkWell(
-                        onTap: () => _selectSlot(gigID),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1A237E),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildInfoRow(Icons.monetization_on, 'RM ${remuneration.toStringAsFixed(2)}/hr'),
-                              _buildInfoRow(Icons.location_on, location),
-                              _buildInfoRow(Icons.calendar_today, formattedDate),
-                              _buildInfoRow(Icons.access_time, formattedTime),
-                              _buildInfoRow(Icons.people,
-                                  'Foremen Needed: $foremenAssigned / $foremenNeeded'), // Display current vs needed
-                              const SizedBox(height: 16),
-                              Center(
-                                child: ElevatedButton(
-                                  onPressed: () => _selectSlot(gigID),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF1A237E),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
+                    return FutureBuilder<Map<String, String>>(
+                      future: _fetchWorkshopNames([ownerId]),
+                      builder: (context, workshopSnapshot) {
+                        String workshopName = workshopSnapshot.data?[ownerId] ?? 'Loading...';
+                        
+                        return Card(
+                          margin: const EdgeInsets.all(8.0),
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: InkWell(
+                            onTap: () => _selectSlot(gigID),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              title,
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            // Functional Requirement: Display the respective workshop name along with gig details.
+                                            Text(
+                                              workshopName,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      // Functional Requirement: Display salary details (RM/hr) in the top-right badge.
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue,
+                                          borderRadius: BorderRadius.circular(5),
+                                        ),
+                                        child: Text(
+                                          'RM ${remuneration.toStringAsFixed(2)}/hr',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  child: const Text('Apply for Gig'),
-                                ),
+                                  const SizedBox(height: 12),
+                                  _buildInfoRow(Icons.location_on, location),
+                                  _buildInfoRow(Icons.calendar_today, formattedDate),
+                                  _buildInfoRow(Icons.access_time, formattedTime),
+                                  // Functional Requirement: Display foreman count at the bottom of the gig card.
+                                  _buildInfoRow(Icons.people, 'Foremen: ${foremenAssigned} / ${foremenNeeded}'),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     );
                   },
                 );
