@@ -36,6 +36,46 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
     _currentUser = _auth.currentUser;
   }
 
+  /// Checks the application status for a specific gig and foreman
+  /// @param gigId The ID of the gig to check
+  /// @param foremanId The ID of the foreman
+  /// @return The application status or null if no application exists
+  Future<String?> _getApplicationStatus(String gigId, String foremanId) async {
+    try {
+      final QuerySnapshot existingApplications = await FirebaseFirestore.instance
+          .collection('gigApplications')
+          .where('foremanId', isEqualTo: foremanId)
+          .where('gigId', isEqualTo: gigId)
+          .get();
+
+      if (existingApplications.docs.isNotEmpty) {
+        return existingApplications.docs.first['status'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print('Error checking application status: $e');
+      return null;
+    }
+  }
+
+  /// Gets the appropriate button text and state based on application status
+  /// @param status The application status
+  /// @return Map containing button text and whether it's enabled
+  Map<String, dynamic> _getButtonState(String? status) {
+    if (status == null) {
+      return {'text': 'Apply', 'enabled': true, 'color': Colors.blue};
+    } else if (status == 'Pending') {
+      return {'text': 'Apply', 'enabled': true, 'color': Colors.blue};
+    } else if (status == 'Approved') {
+      return {'text': 'Apply', 'enabled': true, 'color': Colors.blue};
+    } else if (status == 'Rejected') {
+      return {'text': 'Apply', 'enabled': true, 'color': Colors.blue};
+    } else if (status == 'Cancelled') {
+      return {'text': 'Apply', 'enabled': true, 'color': Colors.blue};
+    }
+    return {'text': 'Apply', 'enabled': true, 'color': Colors.blue};
+  }
+
   @override
   void dispose() {
     super.dispose();
@@ -54,15 +94,10 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
 
   // _displaySlots method will be removed/refactored into StreamBuilder
 
-  /// Initiates the application process for a selected gig slot
-  /// @param gigID The ID of the gig to apply for
-  void _selectSlot(String gigID) {
-    _showConfirmApplicationDialog(gigID);
-  }
-
   /// Shows a confirmation dialog before submitting the application
   /// @param gigID The ID of the gig to apply for
-  void _showConfirmApplicationDialog(String gigID) {
+  /// @param applicationStatus The current application status (null for new application)
+  void _showConfirmApplicationDialog(String gigID, [String? applicationStatus]) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -107,15 +142,24 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
         return;
       }
 
-      // Functional Requirement: A foreman can apply for a gig only once.
-      final QuerySnapshot existingApplication = await FirebaseFirestore.instance
+      // Check for existing applications - only prevent reapplication if approved
+      final QuerySnapshot existingApplications = await FirebaseFirestore.instance
           .collection('gigApplications')
           .where('foremanId', isEqualTo: foremanId)
           .where('gigId', isEqualTo: gigId)
           .get();
 
-      if (existingApplication.docs.isNotEmpty) {
-        _showSnackBar('You have already applied for this gig.', isError: true);
+      // Check if there's an approved application for this gig
+      bool hasApprovedApplication = existingApplications.docs.any((doc) => doc['status'] == 'Approved');
+      if (hasApprovedApplication) {
+        _showSnackBar('You have already applied for this gig and received approval.', isError: true);
+        return;
+      }
+
+      // Check if there's a pending application for this gig
+      bool hasPendingApplication = existingApplications.docs.any((doc) => doc['status'] == 'Pending');
+      if (hasPendingApplication) {
+        _showSnackBar('You have already applied for this gig and your application is pending review.', isError: true);
         return;
       }
 
@@ -150,13 +194,13 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
         int.parse(gigEndTimeStr.split(':')[1]),
       );
 
-      final QuerySnapshot existingApplications = await FirebaseFirestore.instance
+      final QuerySnapshot approvedApplications = await FirebaseFirestore.instance
           .collection('gigApplications')
           .where('foremanId', isEqualTo: foremanId)
           .where('status', isEqualTo: 'Approved') // Only check against approved gigs
           .get();
 
-      for (var appDoc in existingApplications.docs) {
+      for (var appDoc in approvedApplications.docs) {
         final String existingGigId = appDoc['gigId'];
         if (existingGigId == gigId) continue; // Skip the current gig if already applied and approved
 
@@ -485,9 +529,26 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
 
                 // Further filter out gigs where foremenAssigned >= foremenNeeded
                 gigs = gigs.where((gig) {
-                  final int foremenNeeded = (gig['foremenNeeded'] as num?)?.toInt() ?? 0;
-                  final int foremenAssigned = (gig['foremenAssigned'] as num?)?.toInt() ?? 0;
-                  return foremenAssigned < foremenNeeded;
+                  final gigData = gig.data() as Map<String, dynamic>;
+                  final int foremenNeeded = (gigData['foremenNeeded'] as num?)?.toInt() ?? 0;
+                  final int foremenAssigned = (gigData['foremenAssigned'] as num?)?.toInt() ?? 0;
+                  
+                  // Check if gig is not fully booked
+                  if (foremenAssigned >= foremenNeeded) {
+                    return false;
+                  }
+                  
+                  // Check if gig is in the future
+                  final Timestamp dateTimestamp = gigData['date'] as Timestamp? ?? Timestamp.now();
+                  final DateTime gigDate = dateTimestamp.toDate();
+                  final DateTime now = DateTime.now();
+                  
+                  // Compare dates (ignore time for date comparison)
+                  final DateTime gigDateOnly = DateTime(gigDate.year, gigDate.month, gigDate.day);
+                  final DateTime nowDateOnly = DateTime(now.year, now.month, now.day);
+                  
+                  // Only show gigs that are today or in the future
+                  return gigDateOnly.isAfter(nowDateOnly) || gigDateOnly.isAtSameMomentAs(nowDateOnly);
                 }).toList();
 
                 if (gigs.isEmpty) {
@@ -529,70 +590,98 @@ class _GigApplicationInterfaceState extends State<GigApplicationInterface> {
                       builder: (context, workshopSnapshot) {
                         String workshopName = workshopSnapshot.data?[ownerId] ?? 'Loading...';
                         
-                        return Card(
-                          margin: const EdgeInsets.all(8.0),
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: InkWell(
-                            onTap: () => _selectSlot(gigID),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              title,
-                                              style: const TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.bold,
+                        return FutureBuilder<String?>(
+                          future: _currentUser != null ? _getApplicationStatus(gigID, _currentUser!.uid) : Future.value(null),
+                          builder: (context, statusSnapshot) {
+                            String? applicationStatus = statusSnapshot.data;
+                            Map<String, dynamic> buttonState = _getButtonState(applicationStatus);
+                            
+                            return Card(
+                              margin: const EdgeInsets.all(8.0),
+                              elevation: 4,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                title,
+                                                style: const TextStyle(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            // Functional Requirement: Display the respective workshop name along with gig details.
-                                            Text(
-                                              workshopName,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                color: Colors.grey,
+                                              const SizedBox(height: 4),
+                                              // Functional Requirement: Display the respective workshop name along with gig details.
+                                              Text(
+                                                workshopName,
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  color: Colors.grey,
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      // Functional Requirement: Display salary details (RM/hr) in the top-right badge.
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.blue,
-                                          borderRadius: BorderRadius.circular(5),
+                                        // Functional Requirement: Display salary details (RM/hr) in the top-right badge.
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue,
+                                            borderRadius: BorderRadius.circular(5),
+                                          ),
+                                          child: Text(
+                                            'RM ${remuneration.toStringAsFixed(2)}/hr',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _buildInfoRow(Icons.location_on, location),
+                                    _buildInfoRow(Icons.calendar_today, formattedDate),
+                                    _buildInfoRow(Icons.access_time, formattedTime),
+                                    // Functional Requirement: Display foreman count at the bottom of the gig card.
+                                    _buildInfoRow(Icons.people, 'Foremen: ${foremenAssigned} / ${foremenNeeded}'),
+                                    const SizedBox(height: 16),
+                                    // Apply button
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton(
+                                        onPressed: buttonState['enabled'] ? () => _showConfirmApplicationDialog(gigID, applicationStatus) : null,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: buttonState['color'],
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
                                         ),
                                         child: Text(
-                                          'RM ${remuneration.toStringAsFixed(2)}/hr',
+                                          buttonState['text'],
                                           style: const TextStyle(
-                                            color: Colors.white,
+                                            fontSize: 16,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _buildInfoRow(Icons.location_on, location),
-                                  _buildInfoRow(Icons.calendar_today, formattedDate),
-                                  _buildInfoRow(Icons.access_time, formattedTime),
-                                  // Functional Requirement: Display foreman count at the bottom of the gig card.
-                                  _buildInfoRow(Icons.people, 'Foremen: ${foremenAssigned} / ${foremenNeeded}'),
-                                ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         );
                       },
                     );

@@ -24,6 +24,7 @@ class ManageGigSlots extends StatefulWidget {
 
 class _ManageGigSlotsState extends State<ManageGigSlots> {
   final NotificationService _notificationService = NotificationService();
+  bool _showAllGigs = false; // Toggle to show all gigs or only available future gigs
 
   /// Displays a snackbar message to the user with optional error styling
   /// @param message The message to display
@@ -130,6 +131,32 @@ class _ManageGigSlotsState extends State<ManageGigSlots> {
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
           ),
+          // Toggle button to show all gigs or only available future gigs
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _showAllGigs ? 'Showing all gigs' : 'Showing available future gigs only',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ),
+                Switch(
+                  value: _showAllGigs,
+                  onChanged: (value) {
+                    setState(() {
+                      _showAllGigs = value;
+                    });
+                  },
+                ),
+                Text(
+                  'Show All',
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: widget.gigService.getGigs(),
@@ -146,12 +173,47 @@ class _ManageGigSlotsState extends State<ManageGigSlots> {
 
                 final gigs = snapshot.data!.docs;
 
+                // Filter gigs based on toggle state
+                List<QueryDocumentSnapshot> filteredGigs = gigs;
+                if (!_showAllGigs) {
+                  filteredGigs = gigs.where((gig) {
+                    final gigData = gig.data() as Map<String, dynamic>;
+                    final int foremenNeeded = (gigData['foremenNeeded'] as num?)?.toInt() ?? 0;
+                    final int foremenAssigned = (gigData['foremenAssigned'] as num?)?.toInt() ?? 0;
+                    
+                    // Check if gig is not fully booked
+                    if (foremenAssigned >= foremenNeeded) {
+                      return false;
+                    }
+                    
+                    // Check if gig is in the future
+                    final Timestamp dateTimestamp = gigData['date'] as Timestamp? ?? Timestamp.now();
+                    final DateTime gigDate = dateTimestamp.toDate();
+                    final DateTime now = DateTime.now();
+                    
+                    // Compare dates (ignore time for date comparison)
+                    final DateTime gigDateOnly = DateTime(gigDate.year, gigDate.month, gigDate.day);
+                    final DateTime nowDateOnly = DateTime(now.year, now.month, now.day);
+                    
+                    // Only show gigs that are today or in the future
+                    return gigDateOnly.isAfter(nowDateOnly) || gigDateOnly.isAtSameMomentAs(nowDateOnly);
+                  }).toList();
+                }
+
+                if (filteredGigs.isEmpty) {
+                  return Center(
+                    child: Text(
+                      _showAllGigs ? 'No gig slots available.' : 'No available future gig slots.',
+                    ),
+                  );
+                }
+
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  itemCount: gigs.length,
+                  itemCount: filteredGigs.length,
                   itemBuilder: (context, index) {
-                    var gig = gigs[index].data() as Map<String, dynamic>;
-                    String gigId = gigs[index].id;
+                    var gig = filteredGigs[index].data() as Map<String, dynamic>;
+                    String gigId = filteredGigs[index].id;
 
                     // Safely extract data with default values
                     String title = gig['title'] ?? 'No Title';
@@ -180,13 +242,35 @@ class _ManageGigSlotsState extends State<ManageGigSlots> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    title,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1A237E),
-                                    ),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          title,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF1A237E),
+                                          ),
+                                        ),
+                                      ),
+                                      // Status indicator
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: _getGigStatusColor(gig),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          _getGigStatusText(gig),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   const SizedBox(height: 4),
                                   Text(formattedDate, style: const TextStyle(fontSize: 14)),
@@ -278,5 +362,51 @@ class _ManageGigSlotsState extends State<ManageGigSlots> {
         ],
       ),
     );
+  }
+
+  Color _getGigStatusColor(Map<String, dynamic> gig) {
+    final Timestamp dateTimestamp = gig['date'] as Timestamp? ?? Timestamp.now();
+    final DateTime gigDate = dateTimestamp.toDate();
+    final DateTime now = DateTime.now();
+    
+    // Compare dates (ignore time for date comparison)
+    final DateTime gigDateOnly = DateTime(gigDate.year, gigDate.month, gigDate.day);
+    final DateTime nowDateOnly = DateTime(now.year, now.month, now.day);
+    
+    final int foremenNeeded = (gig['foremenNeeded'] as num?)?.toInt() ?? 0;
+    final int foremenAssigned = (gig['foremenAssigned'] as num?)?.toInt() ?? 0;
+    
+    if (gigDateOnly.isBefore(nowDateOnly)) {
+      return Colors.red; // Past
+    } else if (foremenAssigned >= foremenNeeded) {
+      return Colors.orange; // Fully booked
+    } else if (gigDateOnly.isAfter(nowDateOnly)) {
+      return Colors.green; // Future and available
+    } else {
+      return Colors.blue; // Today
+    }
+  }
+
+  String _getGigStatusText(Map<String, dynamic> gig) {
+    final Timestamp dateTimestamp = gig['date'] as Timestamp? ?? Timestamp.now();
+    final DateTime gigDate = dateTimestamp.toDate();
+    final DateTime now = DateTime.now();
+    
+    // Compare dates (ignore time for date comparison)
+    final DateTime gigDateOnly = DateTime(gigDate.year, gigDate.month, gigDate.day);
+    final DateTime nowDateOnly = DateTime(now.year, now.month, now.day);
+    
+    final int foremenNeeded = (gig['foremenNeeded'] as num?)?.toInt() ?? 0;
+    final int foremenAssigned = (gig['foremenAssigned'] as num?)?.toInt() ?? 0;
+    
+    if (gigDateOnly.isBefore(nowDateOnly)) {
+      return 'Past';
+    } else if (foremenAssigned >= foremenNeeded) {
+      return 'Full';
+    } else if (gigDateOnly.isAfter(nowDateOnly)) {
+      return 'Available';
+    } else {
+      return 'Today';
+    }
   }
 } 
